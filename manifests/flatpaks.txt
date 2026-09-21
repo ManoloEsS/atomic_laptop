@@ -1,0 +1,2 @@
+# Flatpak app IDs, installed system-wide from Flathub.
+org.mozilla.firefox

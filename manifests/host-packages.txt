@@ -1,0 +1,8 @@
+# Host rpm-ostree layers: session/system integration only.
+# One transaction, one reboot. Base image packages are never listed here.
+niri
+noctalia
+ghostty
+keyd
+wtype
+tailscale

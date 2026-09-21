@@ -1,0 +1,58 @@
+# Font
+font-family = "JetBrainsMono Nerd Font"
+font-style = Regular
+font-size = 14
+
+# Window
+window-theme = ghostty
+window-padding-x = 5
+window-padding-y = 5
+confirm-close-surface = false
+resize-overlay = never
+gtk-toolbar-style = flat
+
+# Cursor
+cursor-style = block
+cursor-style-blink = false
+
+# Shell integration reports the focused surface's CWD to Ghostty.
+shell-integration-features = no-cursor,ssh-env,path
+window-inherit-working-directory = true
+tab-inherit-working-directory = true
+split-inherit-working-directory = true
+
+# Clipboard and modified Enter keys
+keybind = shift+insert=paste_from_clipboard
+keybind = control+insert=copy_to_clipboard
+keybind = shift+enter=csi:13;2u
+keybind = alt+shift+enter=csi:13;4u
+
+# Input and rendering
+mouse-scroll-multiplier = 0.95
+background-opacity = 0.95
+background-blur = true
+async-backend = epoll
+
+# Static Tokyo Night colors.
+background = #1a1b26
+foreground = #a9b1d6
+cursor-color = #c0caf5
+selection-background = #292e42
+selection-foreground = #c0caf5
+
+palette = 0=#1a1b26
+palette = 1=#f7768e
+palette = 2=#9ece6a
+palette = 3=#e0af68
+palette = 4=#7aa2f7
+palette = 5=#ad8ee6
+palette = 6=#449dab
+palette = 7=#a9b1d6
+palette = 8=#414868
+palette = 9=#ff7a93
+palette = 10=#b9f27c
+palette = 11=#ff9e64
+palette = 12=#7da6ff
+palette = 13=#bb9af7
+palette = 14=#0db9d7
+palette = 15=#c0caf5

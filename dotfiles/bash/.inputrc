@@ -1,0 +1,10 @@
+set editing-mode emacs
+set completion-ignore-case on
+set show-all-if-ambiguous on
+set show-all-if-unmodified on
+set page-completions off
+set menu-complete-display-prefix on
+
+# Cycle forward and backward through completion candidates.
+TAB: menu-complete
+"\e[Z": menu-complete-backward

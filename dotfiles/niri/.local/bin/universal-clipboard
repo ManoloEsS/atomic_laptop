@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+action=${1:?usage: universal-clipboard copy|paste|cut}
+
+case "$action" in
+    copy|paste|cut) ;;
+    *) printf 'Unknown clipboard action: %s\n' "$action" >&2; exit 2 ;;
+esac
+
+browser=0
+while IFS= read -r line; do
+    case "$line" in
+        *'App ID: "org.mozilla.firefox"'*|*'App ID: "zen"'*|*'App ID: "chromium"'*|*'App ID: "google-chrome"'*|*'App ID: "com.google.Chrome"'*|*'App ID: "Brave-browser"'*)
+            browser=1
+            break
+            ;;
+    esac
+done < <(niri msg focused-window)
+
+if ((browser)); then
+    case "$action" in
+        copy) wtype -M ctrl -k c -m ctrl ;;
+        paste) wtype -M ctrl -k v -m ctrl ;;
+        cut) wtype -M ctrl -k x -m ctrl ;;
+    esac
+else
+    case "$action" in
+        copy) wtype -M ctrl -P Insert -p Insert -m ctrl ;;
+        paste) wtype -M shift -P Insert -p Insert -m shift ;;
+        cut) wtype -M ctrl -P x -p x -m ctrl ;;
+    esac
+fi

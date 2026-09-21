@@ -1,0 +1,10 @@
+// Machine-specific Niri outputs for the laptop profile.
+// Installed once to ~/.config/niri/local.kdl; never overwritten by the installer.
+// Fill in real output identifiers from `niri msg outputs`, e.g.:
+//
+// output "BOE 0x0B69 Unknown" {
+//     scale 1
+// }
+//
+// External monitors/docks: add one output block per confirmed identifier.
+// Recheck after display, dock, or driver changes.

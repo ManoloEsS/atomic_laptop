@@ -1,0 +1,149 @@
+[audio]
+enable_sounds = true
+
+[bar]
+order = [ "default" ]
+
+    [bar.default]
+    center = [ "group:g1", "caffeine" ]
+    end = [ "media", "tray", "notifications", "volume", "brightness", "battery", "bluetooth", "network" ]
+    font_scale = 0.8
+    margin_ends = 0
+    padding = 15
+    radius = 0
+    scale = 1.2
+    shadow = false
+    start = [ "control-center", "workspaces" ]
+    thickness = 27
+    widget_spacing = 10
+
+        [[bar.default.capsule_group]]
+        accordion = false
+        accordion_direction = "end"
+        enabled = true
+        fill = "surface_variant"
+        id = "g1"
+        members = [ "date", "clock" ]
+        opacity = 0.0
+        padding = 6.0
+
+[calendar]
+
+[control_center]
+hidden_tabs = [ "screen-time" ]
+
+    [control_center.calendar]
+    show_week_numbers = true
+
+[desktop_widgets]
+enabled = false
+
+[idle]
+behavior_order = [ "lock", "screen-off" ]
+
+    [idle.behavior.lock]
+    action = "lock"
+    enabled = true
+    timeout = 500.0
+
+    [idle.behavior.screen-off]
+    action = "screen_off"
+    enabled = true
+    locked_timeout = 60.0
+    timeout = 660.0
+
+[location]
+auto_locate = true
+
+[lockscreen]
+blur_intensity = 0.6
+enabled = true
+fingerprint = false
+
+[lockscreen_widgets]
+enabled = true
+schema_version = 2
+
+[nightlight]
+enabled = true
+
+[osd]
+
+[shell]
+clipboard_auto_paste = "auto"
+clipboard_enabled = true
+clipboard_history_max_entries = 25
+clipboard_keep_from_closed_apps = false
+font_family = "JetBrainsMono Nerd Font"
+polkit_agent = true
+
+    [shell.animation]
+    enabled = false
+
+    [shell.launcher.providers.calculator]
+    global = false
+
+    [[shell.session.actions]]
+    action = "lock"
+    countdown_seconds = 0.0
+    enabled = true
+    shortcut = "1"
+    variant = "default"
+
+    [[shell.session.actions]]
+    action = "logout"
+    countdown_seconds = 0.0
+    enabled = true
+    shortcut = "2"
+    variant = "default"
+
+    [[shell.session.actions]]
+    action = "lock_and_suspend"
+    countdown_seconds = 0.0
+    enabled = false
+    shortcut = "3"
+    variant = "default"
+
+    [[shell.session.actions]]
+    action = "reboot"
+    countdown_seconds = 0.0
+    enabled = true
+    shortcut = "4"
+    variant = "default"
+
+    [[shell.session.actions]]
+    action = "shutdown"
+    countdown_seconds = 0.0
+    enabled = true
+    shortcut = "5"
+    variant = "destructive"
+
+[theme]
+community_palette = "Tokyo Night Storm"
+source = "community"
+
+[widget.caffeine]
+color = "on_surface"
+scale = 0.65000000000000002
+
+[widget.control-center]
+glyph = "navigation-filled"
+
+[widget.launcher]
+glyph = "brackets-angle-off"
+
+[widget.media]
+hide_album_art = true
+hide_when_no_media = true
+title_scroll = "always"
+
+[widget.network]
+show_label = false
+
+[widget.notifications]
+hide_when_no_unread = true
+
+[widget.workspaces]
+focused_output_only = true
+hide_when_empty = true
+labels_only_when_occupied = true

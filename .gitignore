@@ -1,0 +1,17 @@
+# Local profile values may contain host-specific data.
+/profiles/*/profile.env
+!/profiles/*/profile.env.example
+
+# Local Mise overrides; base mise.toml and mise.lock are committed.
+mise.local.toml
+mise.*.local.toml
+
+# Editor and OS artifacts.
+*~
+*.swp
+*.swo
+.DS_Store
+
+# Local logs and generated reports.
+*.log
+/reports/
