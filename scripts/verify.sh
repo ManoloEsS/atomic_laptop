@@ -209,6 +209,14 @@ else
   pass "Niri machine-output file present"
 fi
 
+# A missing touchpad fragment breaks Niri config load, so this fails.
+niri_touchpad=${XDG_CONFIG_HOME:-$HOME/.config}/niri/touchpad.kdl
+if [[ -r $niri_touchpad ]]; then
+  pass "Niri touchpad fragment present"
+else
+  fail "Niri touchpad fragment missing: $niri_touchpad (shared config includes it)"
+fi
+
 if command -v noctalia >/dev/null 2>&1; then
   if noctalia config validate >/dev/null 2>&1; then
     pass "noctalia configuration validates"

@@ -1,6 +1,9 @@
 // Niri configuration for the Fedora laptop session.
 // Machine-specific outputs live in ~/.config/niri/local.kdl (see profiles/laptop/).
 include "~/.config/niri/local.kdl"
+// Touchpad on/off state lives in ~/.config/niri/touchpad.kdl (toggle-touchpad).
+// It MUST be included after the main input block below: pointing-device
+// sections are not merged, so the later definition wins wholesale.
 
 input {
     keyboard {
@@ -42,6 +45,9 @@ input {
     // Setting max-scroll-amount="0%" makes it work only on windows already fully on screen.
     focus-follows-mouse max-scroll-amount="0%"
 }
+
+// Touchpad state fragment (see top comment): positioned after input so it wins.
+include "~/.config/niri/touchpad.kdl"
 
 layout {
     gaps 9
@@ -147,6 +153,12 @@ binds {
     Mod+C repeat=false hotkey-overlay-title="Universal copy" { spawn "~/.local/bin/universal-clipboard" "copy"; }
     Mod+V repeat=false hotkey-overlay-title="Universal paste" { spawn "~/.local/bin/universal-clipboard" "paste"; }
     Mod+X repeat=false hotkey-overlay-title="Universal cut" { spawn "~/.local/bin/universal-clipboard" "cut"; }
+    // Laptop input-device toggle: portable chord plus dedicated
+    // hardware keys (On/Off enforce state rather than toggling).
+    Mod+Alt+U repeat=false hotkey-overlay-title="Toggle touchpad" { spawn "~/.local/bin/toggle-touchpad" "toggle"; }
+    XF86TouchpadToggle repeat=false hotkey-overlay-title="Toggle touchpad" { spawn "~/.local/bin/toggle-touchpad" "toggle"; }
+    XF86TouchpadOn repeat=false hotkey-overlay-title="Enable touchpad" { spawn "~/.local/bin/toggle-touchpad" "on"; }
+    XF86TouchpadOff repeat=false hotkey-overlay-title="Disable touchpad" { spawn "~/.local/bin/toggle-touchpad" "off"; }
     // Lock with noctalia
     Mod+Space hotkey-overlay-title="Open launcher" { spawn-sh "noctalia msg panel-toggle launcher"; }
     Mod+Escape hotkey-overlay-title="Open session options" { spawn-sh "noctalia msg panel-toggle session"; }

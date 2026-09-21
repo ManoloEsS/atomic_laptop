@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Toggle (or enforce) the laptop touchpad, Omarchy-style, adapted for Niri.
+#
+# Usage: toggle-touchpad [on|off|toggle]   (default: toggle)
+#
+# Niri 26.04 has no per-device runtime toggle, so state lives in the
+# ~/.config/niri/touchpad.kdl fragment (also the persistence across
+# sessions) and Niri reloads its config to apply it. Expect the touchpad
+# firmware to need a few seconds to recalibrate after re-enabling.
+set -Eeuo pipefail
+
+mode="${1:-toggle}"
+case "$mode" in
+  on|off|toggle) ;;
+  *) printf 'Usage: %s [on|off|toggle]\n' "${0##*/}" >&2; exit 2 ;;
+esac
+
+fragment="${XDG_CONFIG_HOME:-$HOME/.config}/niri/touchpad.kdl"
+off_fragment='input {
+    touchpad {
+        off
+    }
+}'
+
+mkdir -p -- "$(dirname -- "$fragment")"
+
+is_off=0
+if [[ -f $fragment ]] && grep -q '^[[:space:]]*off[[:space:]]*$' "$fragment"; then
+  is_off=1
+fi
+
+case "$mode" in
+  on) state=on ;;
+  off) state=off ;;
+  toggle) if ((is_off)); then state=on; else state=off; fi ;;
+esac
+
+if [[ $state == on ]]; then
+  # Comment-only fragment: shared touchpad defaults apply.
+  printf '%s\n' '// Touchpad enabled (managed by toggle-touchpad).' >"$fragment"
+else
+  printf '%s\n' "$off_fragment" >"$fragment"
+fi
+
+if [[ -n "${NIRI_SOCKET:-}" ]] && command -v niri >/dev/null 2>&1; then
+  niri msg action load-config-file
+fi
+
+if command -v notify-send >/dev/null 2>&1; then
+  notify-send "Touchpad $state" || true
+fi
+
+printf 'Touchpad %s.\n' "$state"

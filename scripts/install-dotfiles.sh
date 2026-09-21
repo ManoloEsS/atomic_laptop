@@ -97,6 +97,19 @@ if [[ ! -e $niri_local && ! -L $niri_local ]]; then
   fi
 fi
 
+# Touchpad fragment defaulted ON; toggle-touchpad owns it afterwards.
+# Never overwritten: a missing include breaks Niri config load entirely.
+niri_touchpad="$HOME/.config/niri/touchpad.kdl"
+if [[ ! -e $niri_touchpad && ! -L $niri_touchpad ]]; then
+  if [[ $DRY_RUN == true ]]; then
+    info "Would install Niri touchpad stub (enabled) to $niri_touchpad"
+  else
+    mkdir -p -- "$HOME/.config/niri"
+    printf '%s\n' '// Touchpad enabled (managed by toggle-touchpad).' >"$niri_touchpad"
+    info "Installed Niri touchpad stub (enabled)"
+  fi
+fi
+
 profile_source="$REPO_ROOT/profiles/$PROFILE/profile.env"
 profile_target="$HOME/.config/fedora-laptop/profile.env"
 if [[ -r $profile_source ]]; then
