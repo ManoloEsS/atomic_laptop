@@ -132,6 +132,33 @@ fi
 
 check_service tailscaled.service
 
+# Managed WiFi powersave config (mirrors keyd handling, always expected).
+wifi_source="$REPO_ROOT/system/NetworkManager/wifi-powersave.conf"
+wifi_dest=/etc/NetworkManager/conf.d/wifi-powersave.conf
+if [[ -r $wifi_dest && ! -L $wifi_dest ]] && cmp --silent "$wifi_source" "$wifi_dest"; then
+  pass "WiFi powersave configuration matches repository"
+else
+  fail "WiFi powersave configuration is missing or differs from repository"
+fi
+
+# Effective radio state (needs a NetworkManager restart/reboot after install).
+if command -v iw >/dev/null 2>&1; then
+  wifi_ifaces=$(iw dev 2>/dev/null | awk '$1=="Interface"{print $2}')
+  if [[ -z $wifi_ifaces ]]; then
+    verify_warn "no wireless interfaces found; skipping radio check"
+  else
+    for iface in $wifi_ifaces; do
+      if iw dev "$iface" get power_save 2>/dev/null | grep -qi off; then
+        pass "WiFi power save off: $iface"
+      else
+        fail "WiFi power save on: $iface (restart NetworkManager or reboot)"
+      fi
+    done
+  fi
+else
+  verify_warn "iw unavailable; skipping radio check"
+fi
+
 # Base-image services are informational only; never fail on them.
 for unit in NetworkManager.service firewalld.service fstrim.timer; do
   if unit_exists "$unit" && systemctl is-active --quiet "$unit"; then

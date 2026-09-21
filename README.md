@@ -121,7 +121,13 @@ Tailscale needs one manual step: `sudo tailscale up`.
 
 Base services (NetworkManager, firewalld, fstrim, power-profile backend)
 are observed and reported, never enabled or changed by the installer. Only
-`keyd` (opt-in) and `tailscaled` are managed.
+`keyd` (opt-in), `tailscaled`, and the WiFi powersave config are managed.
+
+WiFi power save is unconditionally disabled via
+`system/NetworkManager/wifi-powersave.conf` (`wifi.powersave = 2`): the
+Fedora default parks the radio and adds wake-up latency spikes that power
+profiles (Noctalia/tuned) do not govern. Battery cost is negligible. The
+setting takes effect on NetworkManager restart or reboot.
 
 ## Security boundaries
 

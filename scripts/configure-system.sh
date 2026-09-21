@@ -11,6 +11,35 @@ ENABLE_TAILSCALE=false
 ENABLE_KEYD=false
 KEYD_SOURCE="$REPO_ROOT/system/keyd/default.conf"
 KEYD_DESTINATION=/etc/keyd/default.conf
+WIFI_SOURCE="$REPO_ROOT/system/NetworkManager/wifi-powersave.conf"
+WIFI_DESTINATION=/etc/NetworkManager/conf.d/wifi-powersave.conf
+
+# Install one managed system file with backup/refusal semantics (keyd-style).
+install_managed_file() {
+  local source=$1 destination=$2 label=$3 backup
+  [[ -r $source ]] || die "$label source is missing: $source"
+
+  if [[ -L $destination ]] || [[ -e $destination && ! -f $destination ]]; then
+    die "$destination is not a regular file; refusing to replace it"
+  fi
+
+  if [[ -e $destination ]] && ! cmp --silent "$source" "$destination"; then
+    if [[ $REPLACE != true ]]; then
+      die "$destination differs; inspect it and rerun with --replace to make a timestamped backup"
+    fi
+    backup="${destination}.bak.$(date -u +%Y%m%dT%H%M%SZ)"
+    [[ ! -e $backup && ! -L $backup ]] || die "backup destination already exists: $backup"
+    run_root cp --archive "$destination" "$backup"
+    info "Backed up $destination to $backup"
+  fi
+
+  if [[ ! -e $destination ]] || ! cmp --silent "$source" "$destination"; then
+    run_root install -D -o root -g root -m 0644 "$source" "$destination"
+    info "Installed managed $label configuration"
+  else
+    info "Managed $label configuration already in place"
+  fi
+}
 
 usage() {
   printf 'Usage: %s [--profile NAME] [--dry-run] [--replace] [--enable-keyd] [--enable-docker] [--enable-tailscale]\n' "${0##*/}"
@@ -109,6 +138,20 @@ EOF
 else
   info "keyd skipped (opt-in); rerun with --enable-keyd to install and activate the remap"
 fi
+
+# WiFi power save is always managed (low-risk latency fix, not opt-in).
+# Takes effect on NetworkManager restart/reboot; the installer never reboots.
+install_managed_file "$WIFI_SOURCE" "$WIFI_DESTINATION" "WiFi powersave"
+if [[ $DRY_RUN != true ]] && command -v iw >/dev/null 2>&1; then
+  while IFS= read -r iface; do
+    if iw dev "$iface" get power_save 2>/dev/null | grep -qi off; then
+      info "WiFi power save already off: $iface"
+    else
+      warn "WiFi power save still on ($iface); restart NetworkManager or reboot to apply"
+    fi
+  done < <(iw dev 2>/dev/null | awk '$1=="Interface"{print $2}')
+fi
+
 report_service() {
   local unit=$1
   if ! unit_exists "$unit"; then
