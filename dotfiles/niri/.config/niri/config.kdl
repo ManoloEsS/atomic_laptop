@@ -160,7 +160,9 @@ binds {
     Mod+X repeat=false hotkey-overlay-title="Universal cut" { spawn "~/.local/bin/universal-clipboard" "cut"; }
     // Laptop input-device toggle: portable chord plus dedicated
     // hardware keys (On/Off enforce state rather than toggling).
-    Mod+Alt+U repeat=false hotkey-overlay-title="Toggle touchpad" { spawn "~/.local/bin/toggle-touchpad" "toggle"; }
+    // Super+Alt+O joins the Super+Alt+* control group (Super+Alt+U
+    // applies system updates, so the old Mod+Alt+U chord moved here).
+    Super+Alt+O repeat=false hotkey-overlay-title="Toggle touchpad" { spawn "~/.local/bin/toggle-touchpad" "toggle"; }
     XF86TouchpadToggle repeat=false hotkey-overlay-title="Toggle touchpad" { spawn "~/.local/bin/toggle-touchpad" "toggle"; }
     XF86TouchpadOn repeat=false hotkey-overlay-title="Enable touchpad" { spawn "~/.local/bin/toggle-touchpad" "on"; }
     XF86TouchpadOff repeat=false hotkey-overlay-title="Disable touchpad" { spawn "~/.local/bin/toggle-touchpad" "off"; }
