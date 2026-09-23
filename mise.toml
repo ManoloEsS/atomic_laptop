@@ -27,8 +27,11 @@ lazygit = "latest"
 # Snacks explorer searching and Telescope require fd (rg/find fallbacks
 # do not cover the explorer source).
 fd = "latest"
+go = "latest"
 
 # Language runtimes belong in each project's Mise configuration.
+[bootstrap.repos]
+"~/.local/share/fedora-laptop/sources/nvim" = { url = "https://github.com/ManoloEsS/kickstart.nvim.git", ref = "master" }
 
 [dotfiles]
 "~/.bash_aliases" = { source = "dotfiles/bash/.bash_aliases", mode = "symlink" }
@@ -46,3 +49,4 @@ fd = "latest"
 "~/.local/bin" = { source = "dotfiles/local-bin/.local/bin", mode = "symlink-each" }
 "~/.config/systemd/user" = { source = "dotfiles/systemd/.config/systemd/user", mode = "symlink-each" }
 "~/.config/starship.toml" = { source = "dotfiles/starship/.config/starship.toml", mode = "symlink" }
+"~/.config/nvim" = { source = "~/.local/share/fedora-laptop/sources/nvim", mode = "symlink" }
