@@ -42,6 +42,7 @@ go = "latest"
 "~/.inputrc" = { source = "dotfiles/bash/.inputrc", mode = "symlink" }
 "~/.config/fedora-laptop" = { source = "dotfiles/bash/.config/fedora-laptop", mode = "symlink-each" }
 "~/.config/ghostty" = { source = "dotfiles/ghostty/.config/ghostty", mode = "symlink-each" }
+"~/.config/alacritty" = { source = "dotfiles/alacritty/.config/alacritty", mode = "symlink-each" }
 "~/.config/herdr" = { source = "dotfiles/herdr/.config/herdr", mode = "symlink-each" }
 "~/.config/niri" = { source = "dotfiles/niri/.config/niri", mode = "symlink-each" }
 "~/.config/noctalia" = { source = "dotfiles/noctalia/.config/noctalia", mode = "symlink-each" }

@@ -1,0 +1,72 @@
+# Font
+[font]
+normal = { family = "JetBrainsMono Nerd Font", style = "Regular" }
+bold = { family = "JetBrainsMono Nerd Font", style = "Bold" }
+italic = { family = "JetBrainsMono Nerd Font", style = "Italic" }
+size = 14
+
+# Environment: xterm-256color is understood by every remote and container
+# (alacritty's native terminfo entry is not broadly installed).
+[env]
+TERM = "xterm-256color"
+
+# Clipboard via OSC52 so copy/paste works across SSH/remote sessions.
+[terminal]
+osc52 = "CopyPaste"
+
+# Window
+[window]
+padding = { x = 5, y = 5 }
+decorations = "None"
+opacity = 0.9
+blur = true
+
+# Cursor
+[cursor]
+style = { shape = "Block", blinking = "Never" }
+
+# Slower wheel scrolling (mirrors Ghostty's mouse-scroll-multiplier 0.95).
+[scrolling]
+multiplier = 1
+
+# Clipboard and modified Enter keys (CSI-u, matching Ghostty).
+[keyboard]
+bindings = [
+  { key = "Insert", mods = "Shift", action = "Paste" },
+  { key = "Insert", mods = "Control", action = "Copy" },
+  { key = "Return", mods = "Shift", chars = "\u001B[13;2u" },
+  { key = "Return", mods = "Alt|Shift", chars = "\u001B[13;4u" },
+]
+
+# Static Tokyo Night colors.
+[colors.primary]
+background = "#1a1b26"
+foreground = "#a9b1d6"
+
+[colors.cursor]
+text = "#1a1b26"
+cursor = "#c0caf5"
+
+[colors.selection]
+text = "#c0caf5"
+background = "#292e42"
+
+[colors.normal]
+black = "#1a1b26"
+red = "#f7768e"
+green = "#9ece6a"
+yellow = "#e0af68"
+blue = "#7aa2f7"
+magenta = "#ad8ee6"
+cyan = "#449dab"
+white = "#a9b1d6"
+
+[colors.bright]
+black = "#414868"
+red = "#ff7a93"
+green = "#b9f27c"
+yellow = "#ff9e64"
+blue = "#7da6ff"
+magenta = "#bb9af7"
+cyan = "#0db9d7"
+white = "#c0caf5"

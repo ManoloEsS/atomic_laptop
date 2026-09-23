@@ -115,6 +115,14 @@ window-rule {
     }
 }
 
+window-rule {
+    match app-id="^Alacritty$"  // Matches Alacritty's Wayland app ID (class.general)
+
+    background-effect {
+        blur true
+    }
+}
+
 // Common dialogs and picture-in-picture should not consume a full column.
 window-rule {
     match app-id="firefox$" title="^Picture-in-Picture$"
@@ -149,7 +157,7 @@ binds {
     Mod+Ctrl+C { center-column; }
 
     // Applications and Noctalia shell controls.
-    Mod+Return hotkey-overlay-title="Open a terminal" { spawn "ghostty"; }
+    Mod+Return hotkey-overlay-title="Open a terminal" { spawn "alacritty"; }
     Mod+Shift+Return hotkey-overlay-title="Open Firefox" { spawn "flatpak" "run" "org.mozilla.firefox"; }
     Mod+E hotkey-overlay-title="Open the file manager" { spawn "nautilus" "--new-window"; }
     Mod+Q repeat=false { close-window; }
@@ -305,7 +313,7 @@ binds {
     Super+Alt+M hotkey-overlay-title="Open media controls" { spawn-sh "noctalia msg panel-toggle control-center media"; }
     Super+Alt+P hotkey-overlay-title="Open power controls" { spawn-sh "noctalia msg panel-toggle control-center power"; }
     Super+Alt+T hotkey-overlay-title="Open system controls" { spawn-sh "noctalia msg panel-toggle control-center system"; }
-    Super+Alt+U hotkey-overlay-title="Apply system updates" { spawn "ghostty" "-e" "fedora-update"; }
+    Super+Alt+U hotkey-overlay-title="Apply system updates" { spawn "alacritty" "-e" "fedora-update"; }
     Super+Alt+V hotkey-overlay-title="Open clipboard history" { spawn-sh "noctalia msg panel-toggle clipboard"; }
     Super+Alt+W hotkey-overlay-title="Open network controls" { spawn-sh "noctalia msg panel-toggle control-center network"; }
     Super+Alt+Shift+S hotkey-overlay-title="Capture screen region" { spawn-sh "noctalia msg screenshot-region"; }
