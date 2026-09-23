@@ -25,7 +25,7 @@ User-local Mise (rolling latest, survives rebases)
   Go stays global; other project language runtimes stay per-project.
 
 Toolbx (project runtimes)
-  fedora-laptop-dev container, minimal DNF (gcc, make,
+  dev container, minimal DNF (gcc, make,
   wl-clipboard for Neovim builds/clipboard). The same rolling
   Mise CLI tools are available inside the container. Starship is
   global (host and Toolbx) and shows a `⬢ [dev]` marker inside containers
@@ -130,7 +130,7 @@ Act on a notification with `Super+Alt+U` or by running `fedora-update` in
 a terminal: it stages the OS deployment (takes effect on reboot) and
 updates system Flatpaks immediately. Deliberately out of scope: Mise tools
 (`mise upgrade` when you choose), the toolbox userland (`dnf upgrade`
-inside `fedora-laptop-dev`), firmware (`fwupdmgr`), and Neovim/Mason packages.
+inside `dev`), firmware (`fwupdmgr`), and Neovim/Mason packages.
 
 ## Remote development over Tailscale SSH
 
@@ -139,7 +139,7 @@ so no SSH keys are needed on clients. Tailscale SSH sessions skip
 `pam_systemd`, leaving `XDG_RUNTIME_DIR` unset; without it rootless
 Podman/Toolbox fails. The managed `.bashrc` repairs this automatically
 (before the non-interactive early return), so
-`toolbox enter fedora-laptop-dev` works from any Tailscale SSH shell.
+`toolbox enter dev` works from any Tailscale SSH shell.
 
 ## Verification and recovery
 

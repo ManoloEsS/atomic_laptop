@@ -1,4 +1,4 @@
-# Minimal DNF set inside the fedora-laptop-dev Toolbx.
+# Minimal DNF set inside the dev Toolbx.
 # git and openssh-clients are already in the fedora-toolbox base image.
 # Mise cannot distribute these reliably, so they stay native.
 # Everything else personal/CLI is managed by Mise.

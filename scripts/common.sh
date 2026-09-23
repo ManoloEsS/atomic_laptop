@@ -19,7 +19,7 @@ CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 MIN_FEDORA_VERSION=44
 
 # Single source of truth for names shared by install + verify scripts.
-TOOLBOX_NAME=fedora-laptop-dev
+TOOLBOX_NAME=dev
 DESKTOP_SERVICES=(docker.service sshd.service tailscaled.service)
 MISE_CONFIG_PAIRS=("config.toml:mise.toml")
 
