@@ -8,22 +8,22 @@ symbol = "⬢ "
 style = "bold yellow"
 
 [character]
-error_symbol = "[✗](bold cyan)"
-success_symbol = "[❯](bold cyan)"
+error_symbol = "[✗](bold #bb9af7)"
+success_symbol = "[❯](bold #bb9af7)"
 
 [directory]
 truncation_length = 2
 truncation_symbol = "…/"
-repo_root_style = "bold cyan"
+repo_root_style = "bold #bb9af7"
 repo_root_format = "[$repo_root]($repo_root_style)[$path]($style)[$read_only]($read_only_style) "
 
 [git_branch]
 format = "[$branch]($style) "
-style = "italic cyan"
+style = "italic #bb9af7"
 
 [git_status]
 format = '[$all_status]($style)'
-style = "cyan"
+style = "#bb9af7"
 ahead = "⇡${count} "
 diverged = "⇕⇡${ahead_count}⇣${behind_count} "
 behind = "⇣${count} "
