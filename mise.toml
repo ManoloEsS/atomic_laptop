@@ -27,9 +27,10 @@ lazygit = "latest"
 # Snacks explorer searching and Telescope require fd (rg/find fallbacks
 # do not cover the explorer source).
 fd = "latest"
+# Go stays global (used across shells and tooling); other language
+# runtimes belong in each project's Mise configuration.
 go = "latest"
 
-# Language runtimes belong in each project's Mise configuration.
 [bootstrap.repos]
 "~/.local/share/fedora-laptop/sources/nvim" = { url = "https://github.com/ManoloEsS/kickstart.nvim.git", ref = "master" }
 

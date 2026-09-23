@@ -120,7 +120,6 @@ if [[ $REPLACE_DOTFILES == true ]]; then
   dotfile_args+=(--replace-dotfiles)
 fi
 run_phase dotfiles "$ROOT_DIR/scripts/install-dotfiles.sh" "${dotfile_args[@]}"
-run_phase nvim-config "$ROOT_DIR/scripts/install-nvim-config.sh" "${dotfile_args[@]}"
 
 run_phase flatpaks "$ROOT_DIR/scripts/install-flatpak.sh" "${common_args[@]}"
 run_phase toolbox "$ROOT_DIR/scripts/install-toolbox.sh" "${common_args[@]}"

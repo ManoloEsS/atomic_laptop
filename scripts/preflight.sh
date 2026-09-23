@@ -48,7 +48,7 @@ else
   info "No pending rpm-ostree deployment"
 fi
 
-for path in dotfiles system/keyd/default.conf profiles/$PROFILE/local.kdl.example profiles/$PROFILE/profile.env.example profiles/$PROFILE/nvim-source.conf; do
+for path in dotfiles system/keyd/default.conf profiles/$PROFILE/local.kdl.example profiles/$PROFILE/profile.env.example; do
   [[ -e $REPO_ROOT/$path ]] || warn "repository input is currently absent: $path"
 done
 

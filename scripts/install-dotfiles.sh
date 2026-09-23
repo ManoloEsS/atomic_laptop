@@ -87,11 +87,19 @@ fi
 
 if is_dry_run; then
   info "Would run: $MISE_BIN trust $REPO_ROOT/mise.toml"
+  info "Would run: $MISE_BIN bootstrap repos apply/update (Neovim config checkout)"
+  print_command "$MISE_BIN" bootstrap repos apply --skip-dirty
+  print_command "$MISE_BIN" bootstrap repos update --skip-dirty
   info "Would run: $MISE_BIN bootstrap dotfiles apply --dry-run (status/diff preview)"
   print_command "$MISE_BIN" bootstrap dotfiles apply --dry-run
 else
   command -v "$MISE_BIN" >/dev/null 2>&1 || die "required command not found: $MISE_BIN"
   "$MISE_BIN" trust "$REPO_ROOT/mise.toml"
+  # Clone/converge external checkouts (Neovim config) before dotfiles apply,
+  # since ~/.config/nvim links into the checkout below. Dirty checkouts are
+  # skipped, never discarded (nvim rewrites its own lockfile on launch).
+  (cd "$REPO_ROOT" && "$MISE_BIN" bootstrap repos apply --skip-dirty)
+  (cd "$REPO_ROOT" && "$MISE_BIN" bootstrap repos update --skip-dirty)
   "$MISE_BIN" bootstrap dotfiles apply
 fi
 

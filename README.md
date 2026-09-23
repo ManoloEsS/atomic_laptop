@@ -19,10 +19,10 @@ Host rpm-ostree (one transaction, one reboot)
 User-local Mise (rolling latest, survives rebases)
   herdr, yazi, neovim, tmux, fzf, bat, eza,
   zoxide, gh, jj, opencode, ripgrep, tree-sitter,
-  starship, node, lazygit, prettierd, fd.
+  starship, node, lazygit, prettierd, fd, go.
   Declared in mise.toml (no lockfile by design). Dotfiles via mise dot apply.
   Linked as the global Mise config, so tools resolve in every directory.
-  Project language runtimes stay per-project, not here.
+  Go stays global; other project language runtimes stay per-project.
 
 Toolbx (project runtimes)
   fedora-laptop-dev container, minimal DNF (gcc, make,
@@ -36,9 +36,13 @@ Flatpak (system-wide)
 ```
 
 Neovim's configuration is kept in the independent kickstart.nvim
-repository and follows its `master` branch. The installer clones it to
-`~/.local/share/fedora-laptop/sources/nvim` and links `~/.config/nvim`
-at it, fetching the current tip on each run.
+repository and follows its `master` branch. It is managed natively by
+Mise: `[bootstrap.repos]` in `mise.toml` clones it to
+`~/.local/share/fedora-laptop/sources/nvim`, and the `[dotfiles]`
+`~/.config/nvim` entry links at it. The dotfiles phase runs
+`mise bootstrap repos apply/update` (dirty checkouts are skipped, never
+discarded) before applying links, so reruns follow the branch tip
+without touching local edits.
 
 Third-party host trust is limited to the Ghostty and keyd COPRs plus the
 official Docker and Tailscale vendor repos. All COPR definitions are
@@ -63,8 +67,8 @@ deployment needs booting, `scripts/install-packages.sh` exits with status
 `10`; `install.sh` stops without rebooting. Reboot manually, rerun the same
 command. The second pass configures keyd (opt-in), WiFi powersave, and the
 Docker/SSH/Tailscale services, installs the latest Mise tools, applies
-dotfiles and the Neovim config, adds Flatpaks, creates the Toolbx, and
-verifies.
+dotfiles (including the Neovim checkout and its link), adds Flatpaks,
+creates the Toolbx, and verifies.
 
 Common options:
 
@@ -100,13 +104,13 @@ Mise refuses to overwrite conflicting real files. Use `--replace-dotfiles`
 to back up known managed targets first. Niri output names are hardware data:
 capture them with `niri msg outputs` and keep machine rules in the profile.
 
-Global Mise tools are intentionally rolling. Project language runtimes are not
-installed by this laptop profile; declare them in each project instead:
+Global Mise tools are intentionally rolling. Go is installed globally;
+other project language runtimes are not installed by this laptop
+profile; declare them in each project instead:
 
 ```sh
 cd /path/to/project
 mise use python@3.13
-mise use go@1.24
 ```
 
 ## Updates
