@@ -27,11 +27,10 @@ done
 reject_root
 require_command flatpak
 
-if ! flatpak remotes --system 2>/dev/null | grep -q '^flathub'; then
-  run_root flatpak remote-add --if-not-exists --system flathub https://flathub.org/repo/flathub.flatpakrepo
-else
-  info "Flathub remote already present"
-fi
+# --if-not-exists is already idempotent; no need to probe the remote first.
+# Flathub ships its own GPG key inside the .flatpakrepo file (TLS + embedded
+# signature), unlike COPR/vendor repos which we fingerprint-pin above.
+run_root flatpak remote-add --if-not-exists --system flathub https://flathub.org/repo/flathub.flatpakrepo
 
 mapfile -t apps < <(read_manifest "$MANIFEST_DIR/flatpaks.txt")
 for app in "${apps[@]}"; do

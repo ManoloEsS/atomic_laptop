@@ -1,4 +1,0 @@
-# Tool overlay active only with MISE_ENV=toolbox (inside fedora-laptop-dev).
-# Loaded alongside mise.toml; versions stay locked via the shared mise.lock.
-[tools]
-starship = "1.26.0"

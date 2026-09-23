@@ -24,20 +24,19 @@ while (($#)); do
 done
 
 reject_root
-require_silverblue_44
+require_silverblue
 
-for command in rpm sudo systemctl; do
-  require_command "$command"
+require_command sudo
+require_command systemctl
+
+# Manifests must exist and parse to at least one entry.
+for manifest in host-packages.txt external-repositories.conf vendor-repositories.conf toolbox-packages.txt flatpaks.txt; do
+  [[ -s $MANIFEST_DIR/$manifest ]] || die "missing manifest: $manifest"
+  [[ -n $(read_manifest "$MANIFEST_DIR/$manifest") ]] || die "manifest has no entries: $manifest"
 done
-
-[[ -r $MANIFEST_DIR/host-packages.txt ]] || die "missing host package manifest"
-[[ -r $MANIFEST_DIR/external-repositories.conf ]] || die "missing external repository manifest"
-[[ -r $MANIFEST_DIR/toolbox-packages.txt ]] || die "missing toolbox package manifest"
-[[ -r $MANIFEST_DIR/flatpaks.txt ]] || die "missing flatpak manifest"
 [[ -r $REPO_ROOT/mise.toml ]] || die "missing mise.toml"
-[[ -r $REPO_ROOT/mise.lock ]] || die "missing mise.lock"
 
-if [[ $DRY_RUN == true ]]; then
+if is_dry_run; then
   info "dry-run: skipping sudo credential check (zero side effects)"
 elif ! sudo -n true 2>/dev/null; then
   warn "sudo requires authentication; later mutating steps may prompt"
@@ -49,12 +48,12 @@ else
   info "No pending rpm-ostree deployment"
 fi
 
-for path in dotfiles system/keyd/default.conf; do
+for path in dotfiles system/keyd/default.conf profiles/$PROFILE/local.kdl.example profiles/$PROFILE/profile.env.example profiles/$PROFILE/nvim-source.conf; do
   [[ -e $REPO_ROOT/$path ]] || warn "repository input is currently absent: $path"
 done
 
-info "Fedora Silverblue 44 Atomic preflight passed for profile $PROFILE"
-if [[ $DRY_RUN == true ]]; then
+info "Fedora Silverblue Atomic laptop preflight passed for profile $PROFILE"
+if is_dry_run; then
   info "Dry-run mode selected; no later script should mutate the host"
 fi
 exit 0

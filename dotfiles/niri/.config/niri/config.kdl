@@ -89,6 +89,11 @@ hotkey-overlay {
 
 prefer-no-csd
 
+debug {
+    // Allow Noctalia notification actions and window activation requests.
+    honor-xdg-activation-with-invalid-serial
+}
+
 screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
 
 animations {
@@ -298,6 +303,7 @@ binds {
     Super+Alt+M hotkey-overlay-title="Open media controls" { spawn-sh "noctalia msg panel-toggle control-center media"; }
     Super+Alt+P hotkey-overlay-title="Open power controls" { spawn-sh "noctalia msg panel-toggle control-center power"; }
     Super+Alt+T hotkey-overlay-title="Open system controls" { spawn-sh "noctalia msg panel-toggle control-center system"; }
+    Super+Alt+U hotkey-overlay-title="Apply system updates" { spawn "ghostty" "-e" "fedora-update"; }
     Super+Alt+V hotkey-overlay-title="Open clipboard history" { spawn-sh "noctalia msg panel-toggle clipboard"; }
     Super+Alt+W hotkey-overlay-title="Open network controls" { spawn-sh "noctalia msg panel-toggle control-center network"; }
     Super+Alt+Shift+S hotkey-overlay-title="Capture screen region" { spawn-sh "noctalia msg screenshot-region"; }

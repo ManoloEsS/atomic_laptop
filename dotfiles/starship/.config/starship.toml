@@ -1,6 +1,11 @@
 add_newline = true
 command_timeout = 200
-format = "[$directory$git_branch$git_status]($style)$character"
+format = "[$container$directory$git_branch$git_status]($style)$character"
+
+[container]
+format = "[$symbol\\[$name\\]]($style) "
+symbol = "⬢ "
+style = "bold yellow"
 
 [character]
 error_symbol = "[✗](bold cyan)"

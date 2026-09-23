@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Notify-only update check for the Atomic desktop (OS + Flatpak scope).
+# Intended for a systemd user timer; safe to run by hand. Never applies
+# anything: it prints a summary and sends one desktop notification when
+# the pending set changes.
+set -Eeuo pipefail
+
+APP_NAME="fedora-laptop updates"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/fedora-laptop"
+STATE_FILE="$STATE_DIR/last-update-notice"
+
+pending=()
+
+# rpm-ostree: --check is read-only. It prints "No updates available"
+# when clean; anything else means a deployment is waiting upstream.
+os_output=$(rpm-ostree upgrade --check 2>&1 || true)
+if ! grep -q "No updates available" <<<"$os_output"; then
+  pending+=("OS deployment update available (run fedora-update, then reboot)")
+fi
+
+# Flatpak system updates, one app ID per line when pending.
+flat_output=$(flatpak remote-ls --updates --system --columns=application 2>/dev/null || true)
+if [[ -n $flat_output ]]; then
+  flat_count=$(wc -l <<<"$flat_output")
+  pending+=("Flatpak updates: $flat_count app(s) ($(paste -sd' ' <<<"$flat_output"))")
+fi
+
+if ((${#pending[@]} == 0)); then
+  printf 'No updates pending (OS and Flatpak are current).\n'
+  rm -f -- "$STATE_FILE"
+  exit 0
+fi
+
+summary=$(printf '%s\n' "${pending[@]}")
+printf '%s\n' "$summary"
+
+# Notify once per pending set; silent on repeats.
+mkdir -p -- "$STATE_DIR"
+if [[ -f $STATE_FILE ]] && cmp -s <(printf '%s\n' "$summary") "$STATE_FILE"; then
+  exit 0
+fi
+printf '%s\n' "$summary" > "$STATE_FILE"
+
+if command -v notify-send >/dev/null 2>&1; then
+  notify-send --app-name="$APP_NAME" "Updates available" "$summary"
+fi

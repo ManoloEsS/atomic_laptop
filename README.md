@@ -1,8 +1,8 @@
 # Fedora Laptop
 
-Reproducible workstation setup for **Fedora Silverblue 44**. GDM starts the
-login session, Niri provides the Wayland compositor, and Noctalia supplies the
-desktop shell.
+Reproducible workstation setup for **Fedora Silverblue 44 or newer**. GDM
+starts the login session, Niri provides the Wayland compositor, and Noctalia
+supplies the desktop shell.
 
 ## Layer model
 
@@ -12,31 +12,41 @@ Base image (assumed, never layered)
   fontconfig, portals, PipeWire, NetworkManager, nautilus.
 
 Host rpm-ostree (one transaction, one reboot)
-  niri, noctalia, ghostty, keyd, wtype, tailscale.
+  niri, noctalia, ghostty, keyd, wtype, gcc, make, wl-clipboard,
+  tailscale, openssh-server, Docker CE + Compose/buildx.
   Declared in manifests/host-packages.txt.
 
-User-local Mise (pinned, locked, survives rebases)
+User-local Mise (rolling latest, survives rebases)
   herdr, yazi, neovim, tmux, fzf, bat, eza,
-  zoxide, gh, jj, python.
-  Declared in mise.toml + mise.lock. Dotfiles via mise dot apply.
+  zoxide, gh, jj, opencode, ripgrep, tree-sitter,
+  starship, node, lazygit, prettierd, fd.
+  Declared in mise.toml (no lockfile by design). Dotfiles via mise dot apply.
   Linked as the global Mise config, so tools resolve in every directory.
+  Project language runtimes stay per-project, not here.
 
-Toolbx (project runtimes and container-only prompt)
-  fedora-laptop-dev container, minimal DNF (git, openssh-clients,
-  ncurses-term for Ghostty terminfo), project SDKs via Mise inside
-  the container. Starship lives here only (mise.toolbox.toml,
-  active with MISE_ENV=toolbox); host shells stay plain Bash.
+Toolbx (project runtimes)
+  fedora-laptop-dev container, minimal DNF (gcc, make,
+  wl-clipboard for Neovim builds/clipboard). The same rolling
+  Mise CLI tools are available inside the container. Starship is
+  global (host and Toolbx) and shows a `⬢ [dev]` marker inside containers
+  via its `container` module.
 
 Flatpak (system-wide)
   Firefox from Flathub, declared in manifests/flatpaks.txt.
 ```
 
+Neovim's configuration is kept in the independent kickstart.nvim
+repository and follows its `master` branch. The installer clones it to
+`~/.local/share/fedora-laptop/sources/nvim` and links `~/.config/nvim`
+at it, fetching the current tip on each run.
+
 Third-party host trust is limited to the Ghostty and keyd COPRs plus the
-official Tailscale vendor repo. All COPR definitions are package-scoped
-(`includepkgs`) with GPG checking; differing existing repo files refuse
-instead of overwriting. Every key's fingerprint is pinned — in
-`manifests/external-repositories.conf` for COPRs, in-script for Tailscale —
-and verified against the downloaded key before any repo file is written.
+official Docker and Tailscale vendor repos. All COPR definitions are
+package-scoped (`includepkgs`) with GPG checking; differing existing repo
+files refuse instead of overwriting. Every key's fingerprint is pinned — in
+`manifests/external-repositories.conf` for COPRs,
+`manifests/vendor-repositories.conf` for vendor repos — and verified
+against the downloaded key before any repo file is written.
 Re-check fingerprints on the upstream project pages before changing them.
 
 ## Install
@@ -51,8 +61,9 @@ bash install.sh
 Two passes. The first performs preflight and host package layering. If a new
 deployment needs booting, `scripts/install-packages.sh` exits with status
 `10`; `install.sh` stops without rebooting. Reboot manually, rerun the same
-command. The second pass configures keyd/tailscale, installs the pinned Mise
-release, applies tools and dotfiles, adds Flatpaks, creates the Toolbx, and
+command. The second pass configures keyd (opt-in), WiFi powersave, and the
+Docker/SSH/Tailscale services, installs the latest Mise tools, applies
+dotfiles and the Neovim config, adds Flatpaks, creates the Toolbx, and
 verifies.
 
 Common options:
@@ -71,9 +82,8 @@ transaction is inactive until the matching deployment is booted.
 
 ## Profiles and dotfiles
 
-Only the standard XDG layout (`XDG_CONFIG_HOME=$HOME/.config` or unset) is
-supported; anything else fails fast. Machine-specific, non-secret settings
-belong in `profiles/<name>/profile.env`.
+`XDG_CONFIG_HOME` is honored when set, otherwise `~/.config`.
+Machine-specific, non-secret settings belong in `profiles/<name>/profile.env`.
 Start from `profiles/laptop/profile.env.example`; the real file is ignored.
 The installer links it into `~/.config/fedora-laptop/` when present.
 
@@ -90,13 +100,50 @@ Mise refuses to overwrite conflicting real files. Use `--replace-dotfiles`
 to back up known managed targets first. Niri output names are hardware data:
 capture them with `niri msg outputs` and keep machine rules in the profile.
 
+Global Mise tools are intentionally rolling. Project language runtimes are not
+installed by this laptop profile; declare them in each project instead:
+
+```sh
+cd /path/to/project
+mise use python@3.13
+mise use go@1.24
+```
+
+## Updates
+
+There is no GNOME Software here, so updates are explicit and notify-only.
+Two streams are covered; everything else stays manual:
+
+- OS deployment (`rpm-ostree`, base plus host layers).
+- System Flatpaks.
+
+A daily user timer (`fedora-update-check.timer`) runs
+`fedora-update-check`, which performs read-only checks and sends one
+Noctalia notification when the pending set changes (a state file prevents
+repeat nags). Nothing is staged or applied automatically.
+
+Act on a notification with `Super+Alt+U` or by running `fedora-update` in
+a terminal: it stages the OS deployment (takes effect on reboot) and
+updates system Flatpaks immediately. Deliberately out of scope: Mise tools
+(`mise upgrade` when you choose), the toolbox userland (`dnf upgrade`
+inside `fedora-laptop-dev`), firmware (`fwupdmgr`), and Neovim/Mason packages.
+
+## Remote development over Tailscale SSH
+
+SSH sessions land on the host and authenticate through Tailscale identity,
+so no SSH keys are needed on clients. Tailscale SSH sessions skip
+`pam_systemd`, leaving `XDG_RUNTIME_DIR` unset; without it rootless
+Podman/Toolbox fails. The managed `.bashrc` repairs this automatically
+(before the non-interactive early return), so
+`toolbox enter fedora-laptop-dev` works from any Tailscale SSH shell.
+
 ## Verification and recovery
 
 Final phase runs `scripts/verify.sh`:
 
 ```sh
 rpm-ostree status
-systemctl status keyd tailscaled
+systemctl status keyd tailscaled docker sshd
 mise bootstrap dotfiles status
 niri msg outputs
 ```
@@ -119,9 +166,14 @@ keyd recovery drill (an invalid map can break typing):
 
 Tailscale needs one manual step: `sudo tailscale up`.
 
+The installer enables Docker, `sshd`, and `tailscaled`, but does not
+authenticate or populate them. Docker starts with no migrated containers,
+images, or volumes.
+
 Base services (NetworkManager, firewalld, fstrim, power-profile backend)
-are observed and reported, never enabled or changed by the installer. Only
-`keyd` (opt-in), `tailscaled`, and the WiFi powersave config are managed.
+are observed and reported, never enabled or changed by the installer, except
+that SSH is allowed in the default firewalld zone. Only `keyd` (opt-in),
+the Docker/SSH/Tailscale services, and the WiFi powersave config are managed.
 
 WiFi power save is unconditionally disabled via
 `system/NetworkManager/wifi-powersave.conf` (`wifi.powersave = 2`): the

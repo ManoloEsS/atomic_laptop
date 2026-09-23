@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Shared helpers for Fedora Silverblue setup scripts.
+# Shared helpers for the Fedora Silverblue laptop setup.
 set -Eeuo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
@@ -9,11 +9,19 @@ MANIFEST_DIR="$REPO_ROOT/manifests"
 DRY_RUN=${DRY_RUN:-false}
 PROFILE=${PROFILE:-laptop}
 
-# Dotfiles deploy to literal $HOME/.config; only the standard XDG layout is supported.
-if [[ -n ${XDG_CONFIG_HOME:-} && ${XDG_CONFIG_HOME} != "$HOME/.config" ]]; then
-  printf 'error: non-standard XDG_CONFIG_HOME=%s is not supported (expected %s/.config)\n' "$XDG_CONFIG_HOME" "$HOME" >&2
-  exit 2
-fi
+# Shared assumptions (documented in README.md): Fedora Silverblue >= 44,
+# GNU bash/tar, sudo available. $HOME is the single source of truth.
+# XDG_CONFIG_HOME is honored when set, otherwise ~/.config.
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+
+# Minimum supported Fedora version. COPR/vendor URLs derive from the booted
+# VERSION_ID at runtime instead of a hardcoded release number.
+MIN_FEDORA_VERSION=44
+
+# Single source of truth for names shared by install + verify scripts.
+TOOLBOX_NAME=fedora-laptop-dev
+DESKTOP_SERVICES=(docker.service sshd.service tailscaled.service)
+MISE_CONFIG_PAIRS=("config.toml:mise.toml")
 
 info() {
   printf '==> %s\n' "$*"
@@ -33,6 +41,10 @@ usage_error() {
   exit 2
 }
 
+is_dry_run() {
+  [[ ${DRY_RUN:-false} == true || ${DRY_RUN:-} == 1 || ${DRY_RUN:-} == yes ]]
+}
+
 print_command() {
   printf 'DRY-RUN:'
   printf ' %q' "$@"
@@ -40,7 +52,7 @@ print_command() {
 }
 
 run() {
-  if [[ $DRY_RUN == true ]]; then
+  if is_dry_run; then
     print_command "$@"
   else
     "$@"
@@ -76,13 +88,20 @@ load_os_release() {
   source /etc/os-release
 }
 
-require_silverblue_44() {
+require_silverblue() {
   [[ -e /run/ostree-booted ]] || die "this host is not booted through ostree (/run/ostree-booted is absent)"
   load_os_release
   [[ ${ID:-} == fedora ]] || die "unsupported operating system ID: ${ID:-unknown} (expected fedora)"
   [[ ${VARIANT_ID:-} == silverblue ]] || die "unsupported Fedora variant: ${VARIANT_ID:-unknown} (expected silverblue)"
-  [[ ${VERSION_ID:-} == 44 ]] || die "unsupported Fedora version: ${VERSION_ID:-unknown} (expected 44)"
+  if [[ ! ${VERSION_ID:-} =~ ^[0-9]+$ ]] || (( VERSION_ID < MIN_FEDORA_VERSION )); then
+    die "unsupported Fedora version: ${VERSION_ID:-unknown} (expected Silverblue >= $MIN_FEDORA_VERSION)"
+  fi
   require_command rpm-ostree
+}
+
+# Deprecated alias kept for out-of-tree callers.
+require_silverblue_44() {
+  require_silverblue
 }
 
 pending_deployment_exists() {
@@ -117,4 +136,22 @@ read_manifest() {
 
 unit_exists() {
   systemctl cat "$1" >/dev/null 2>&1
+}
+
+# Booted Fedora version for COPR/vendor URLs (defaults to minimum when
+# /etc/os-release is unreadable, e.g. during dry-runs on other systems).
+fedora_version() {
+  local version_id=""
+  if [[ -r /etc/os-release ]]; then
+    version_id=$(source /etc/os-release >/dev/null 2>&1; printf '%s' "${VERSION_ID:-}")
+  fi
+  [[ $version_id =~ ^[0-9]+$ ]] || version_id=$MIN_FEDORA_VERSION
+  printf '%s' "$version_id"
+}
+
+# Move $1 aside under a timestamped backup root. Usage:
+# backup_path "$target" "$backup_root" ; then mv -- "$target" "$(backup_path ...)"
+backup_path() {
+  local target=$1 backup_root=$2 rel=${1#"$HOME/"}
+  printf '%s/%s' "$backup_root" "$rel"
 }

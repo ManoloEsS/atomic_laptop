@@ -2,7 +2,7 @@
 /profiles/*/profile.env
 !/profiles/*/profile.env.example
 
-# Local Mise overrides; base mise.toml and mise.lock are committed.
+# Local Mise overrides; global tools intentionally resolve rolling versions.
 mise.local.toml
 mise.*.local.toml
 

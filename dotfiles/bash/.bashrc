@@ -8,16 +8,32 @@ export BAT_THEME="ansi"
 export MANROFFOPT="-c"
 export MANPAGER="sh -c 'col -bx | bat -l man -p'"
 
+# Mise shims and ~/.local/bin come first so rolling user tools shadow the
+# system defaults (mise activate also prepends when it runs below).
 case ":${PATH}:" in
   *":${HOME}/.local/bin:"*) ;;
-  *) PATH="${PATH:+${PATH}:}${HOME}/.local/bin" ;;
+  *) PATH="${HOME}/.local/bin${PATH:+:${PATH}}" ;;
 esac
 
 case ":${PATH}:" in
   *":${HOME}/.local/share/mise/shims:"*) ;;
-  *) PATH="${PATH:+${PATH}:}${HOME}/.local/share/mise/shims" ;;
+  *) PATH="${HOME}/.local/share/mise/shims${PATH:+:${PATH}}" ;;
 esac
 export PATH
+
+# Tailscale SSH sessions skip pam_systemd, so XDG_RUNTIME_DIR is unset and
+# rootless Podman/Toolbox fails with "failed to initialize container".
+# Repair it whenever the per-user runtime dir exists (no-op otherwise).
+# Placed before the non-interactive early return so toolbox works in
+# every shell, including `tailscale ssh` sessions.
+if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
+  _runtime_dir="/run/user/$(id -u)"
+  if [[ -d "$_runtime_dir" ]]; then
+    XDG_RUNTIME_DIR="$_runtime_dir"
+    export XDG_RUNTIME_DIR
+  fi
+  unset _runtime_dir
+fi
 
 [[ -r "${HOME}/.cargo/env" ]] && source "${HOME}/.cargo/env"
 
@@ -40,30 +56,22 @@ if [[ ! -v BASH_COMPLETION_VERSINFO && -f /usr/share/bash-completion/bash_comple
   source /usr/share/bash-completion/bash_completion
 fi
 
-set +h
-
-# Inside Toolbx only, enable the toolbox tool overlay (starship prompt).
-if [[ -f /run/.toolboxenv ]]; then
-  export MISE_ENV=toolbox
-fi
-
 if command -v mise >/dev/null 2>&1; then
   eval "$(mise activate bash)"
 fi
 
-# Starship prompt lives in the dev container only, never on the host.
-# Version check (not command -v) so a broken shim never corrupts the shell.
-if [[ -f /run/.toolboxenv && ${TERM:-} != "dumb" ]] && starship --version >/dev/null 2>&1; then
+# Starship is global (host and Toolbx share the same Mise toolset).
+# The prompt shows a `⬢ [dev]` marker inside containers via the
+# starship `container` module and nothing extra on the host.
+if [[ ${TERM:-} != "dumb" ]] && starship --version >/dev/null 2>&1; then
   eval "$(starship init bash)"
 fi
 
-if zoxide --version >/dev/null 2>&1; then
+if command -v zoxide >/dev/null 2>&1; then
   eval "$(zoxide init bash)"
 fi
 
-# fzf ships via Mise (no /usr/share/fzf RPM files); use its built-in integration.
-# Version check (not command -v) so a broken shim never corrupts the shell.
-if fzf --bash >/dev/null 2>&1; then
+if command -v fzf >/dev/null 2>&1 && fzf --bash >/dev/null 2>&1; then
   eval "$(fzf --bash)"
 fi
 
@@ -71,5 +79,8 @@ fi
 [[ -r "${HOME}/.bash_functions" ]] && source "${HOME}/.bash_functions"
 [[ -r "${HOME}/.config/fedora-laptop/profile.sh" ]] && source "${HOME}/.config/fedora-laptop/profile.sh"
 
-# opencode
-export PATH="$HOME/.opencode/bin:$PATH"
+# OpenCode tools, when installed.
+if [[ -d "${HOME}/.opencode/bin" ]]; then
+  PATH="${HOME}/.opencode/bin:${PATH}"
+  export PATH
+fi

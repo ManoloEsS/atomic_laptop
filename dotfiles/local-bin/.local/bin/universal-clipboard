@@ -11,7 +11,7 @@ esac
 browser=0
 while IFS= read -r line; do
     case "$line" in
-        *'App ID: "org.mozilla.firefox"'*|*'App ID: "zen"'*|*'App ID: "chromium"'*|*'App ID: "google-chrome"'*|*'App ID: "com.google.Chrome"'*|*'App ID: "Brave-browser"'*)
+        *'App ID: "org.mozilla.firefox"'*|*'App ID: "zen"'*|*'App ID: "app.zen_browser.zen"'*|*'App ID: "chromium"'*|*'App ID: "google-chrome"'*|*'App ID: "com.google.Chrome"'*|*'App ID: "Brave-browser"'*|*'App ID: "com.brave.Browser"'*)
             browser=1
             break
             ;;

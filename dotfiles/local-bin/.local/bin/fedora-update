@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Manual updater for the Atomic desktop: stages the OS deployment and
+# updates system Flatpaks. Run from a terminal (sudo prompts appear here).
+# A staged OS update applies on the next reboot; Flatpaks apply immediately.
+set -Eeuo pipefail
+
+printf '==> OS deployment (rpm-ostree)\n'
+sudo rpm-ostree upgrade
+printf '\nA staged OS update takes effect after a reboot.\n'
+
+printf '\n==> System Flatpaks\n'
+sudo flatpak update --system -y
+
+printf '\nDone. Reboot when convenient to boot a staged deployment.\n'

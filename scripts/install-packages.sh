@@ -7,15 +7,18 @@ source "$SCRIPT_DIR/common.sh"
 
 PACKAGE_MANIFEST="$MANIFEST_DIR/host-packages.txt"
 REPOSITORY_MANIFEST="$MANIFEST_DIR/external-repositories.conf"
+VENDOR_REPOSITORY_MANIFEST="$MANIFEST_DIR/vendor-repositories.conf"
 
 usage() {
   printf 'Usage: %s [--profile NAME] [--dry-run]\n' "${0##*/}"
 }
 
 copr_repo_url() {
-  local owner=$1 project=$2 arch=$3
-  printf 'https://download.copr.fedorainfracloud.org/results/%s/%s/fedora-44-%s/' "$owner" "$project" "$arch"
+  local owner=$1 project=$2 arch=$3 version=$4
+  printf 'https://download.copr.fedorainfracloud.org/results/%s/%s/fedora-%s-%s/' "$owner" "$project" "$version" "$arch"
 }
+
+CURL_FLAGS=(--fail --silent --show-error --location)
 
 check_key_fingerprint() {
   local key_file=$1 expected=$2 label=$3 actual
@@ -30,29 +33,26 @@ check_key_fingerprint() {
 }
 
 provision_copr_repo() {
-  local package=$1 owner=$2 project=$3 arch=$4 expected_fpr=$5
+  local package=$1 owner=$2 project=$3 arch=$4 expected_fpr=$5 version=$6
   local repo_id base_url gpg_key destination temporary key_tmp
   repo_id="copr-${owner//[^[:alnum:]]/-}-${project//[^[:alnum:]]/-}"
-  base_url=$(copr_repo_url "$owner" "$project" "$arch")
+  base_url=$(copr_repo_url "$owner" "$project" "$arch" "$version")
   gpg_key="https://download.copr.fedorainfracloud.org/results/$owner/$project/pubkey.gpg"
   destination="/etc/yum.repos.d/${repo_id}.repo"
 
-  require_command curl
-  require_command gpg
-
-  if ! curl --fail --silent --show-error --location --output /dev/null "${base_url}repodata/repomd.xml"; then
-    die "COPR $owner/$project has no Fedora 44/$arch metadata at ${base_url}; verify the COPR build or update $REPOSITORY_MANIFEST"
+  if ! curl "${CURL_FLAGS[@]}" --output /dev/null "${base_url}repodata/repomd.xml"; then
+    die "COPR $owner/$project has no Fedora $version/$arch metadata at ${base_url}; verify the COPR build or update $REPOSITORY_MANIFEST"
   fi
   info "COPR metadata reachable: ${base_url}"
 
   key_tmp=$(mktemp)
   trap 'rm -f -- "${key_tmp:-}"' RETURN
-  curl --fail --silent --show-error --location "$gpg_key" --output "$key_tmp"
+  curl "${CURL_FLAGS[@]}" "$gpg_key" --output "$key_tmp"
   check_key_fingerprint "$key_tmp" "$expected_fpr" "COPR $owner/$project"
   rm -f -- "$key_tmp"
   trap - RETURN
 
-  if [[ $DRY_RUN == true ]]; then
+  if is_dry_run; then
     info "Would install repo file to $destination"
     return
   fi
@@ -62,61 +62,54 @@ provision_copr_repo() {
   printf '[%s]\nname=COPR %s/%s\nbaseurl=%s\nenabled=1\ngpgcheck=1\ngpgkey=%s\nincludepkgs=%s\nskip_if_unavailable=0\n' \
     "$repo_id" "$owner" "$project" "$base_url" "$gpg_key" "$package" > "$temporary"
 
-  if run_root test -r "$destination" && run_root cmp --silent "$temporary" "$destination"; then
-    info "COPR repository already configured: $owner/$project"
-  elif run_root test -e "$destination"; then
-    die "$destination differs from the expected $owner/$project definition; inspect it before continuing"
-  else
-    run_root install -o root -g root -m 0644 "$temporary" "$destination"
-    info "Configured COPR repository: $owner/$project"
-  fi
+  install_repo_file "$temporary" "$destination" "$owner/$project"
   rm -f -- "$temporary"
   trap - RETURN
 }
 
-provision_tailscale_repo() {
-  local destination=/etc/yum.repos.d/tailscale.repo
-  local upstream=https://pkgs.tailscale.com/stable/fedora/tailscale.repo
-  # Tailscale Inc. package repository signing key (primary). Cross-check at
-  # https://tailscale.com/kb/1485/install-clients before changing this value.
-  local expected_fpr=2596A99EAAB33821893C0A79458CA832957F5868
-
-  require_command curl
-  require_command gpg
-
-  if ! curl --fail --silent --show-error --location --output /dev/null "$upstream"; then
-    die "official Tailscale repo unreachable at $upstream"
+install_repo_file() {
+  local temporary=$1 destination=$2 label=$3
+  if run_root test -r "$destination" && run_root cmp --silent "$temporary" "$destination"; then
+    info "Repository already configured: $label"
+  elif run_root test -e "$destination"; then
+    die "$destination differs from the expected $label definition; inspect it before continuing"
+  else
+    run_root install -o root -g root -m 0644 "$temporary" "$destination"
+    info "Configured repository: $label"
   fi
-  info "Tailscale repo reachable: $upstream"
+}
 
-  local key_url key_tmp
-  key_url=https://pkgs.tailscale.com/stable/fedora/repo.gpg
+download_repo_file() {
+  local repo_url=$1 package=$2 temporary=$3
+  curl "${CURL_FLAGS[@]}" "$repo_url" --output "$temporary"
+  grep -q 'gpgkey' "$temporary" || die "downloaded repository for $package lacks gpgkey; refusing to use it"
+}
+
+download_and_verify_key() {
+  local key_url=$1 expected_fpr=$2 label=$3 key_tmp
   key_tmp=$(mktemp)
   trap 'rm -f -- "${key_tmp:-}"' RETURN
-  curl --fail --silent --show-error --location "$key_url" --output "$key_tmp"
-  check_key_fingerprint "$key_tmp" "$expected_fpr" "Tailscale vendor key"
+  curl "${CURL_FLAGS[@]}" "$key_url" --output "$key_tmp"
+  check_key_fingerprint "$key_tmp" "$expected_fpr" "$label"
   rm -f -- "$key_tmp"
   trap - RETURN
+}
 
-  if [[ $DRY_RUN == true ]]; then
-    info "Would install repo file to $destination"
+provision_vendor_repo() {
+  local package=$1 repo_url=$2 key_url=$3 expected_fpr=$4 destination=$5
+  local temporary
+
+  download_and_verify_key "$key_url" "$expected_fpr" "Vendor $package"
+
+  if is_dry_run; then
+    info "Would install vendor repository file for $package to $destination"
     return
   fi
 
-  local temporary
   temporary=$(mktemp)
   trap 'rm -f -- "${temporary:-}"' RETURN
-  curl --fail --silent --show-error --location "$upstream" --output "$temporary"
-  grep -q 'gpgkey' "$temporary" || die "downloaded Tailscale repo file lacks gpgkey; refusing to use it"
-
-  if run_root test -r "$destination" && run_root cmp --silent "$temporary" "$destination"; then
-    info "Tailscale repository already configured"
-  elif run_root test -e "$destination"; then
-    die "$destination differs from the official Tailscale repo; inspect it and rerun install-packages.sh after resolving"
-  else
-    run_root install -o root -g root -m 0644 "$temporary" "$destination"
-    info "Configured official Tailscale repository"
-  fi
+  download_repo_file "$repo_url" "$package" "$temporary"
+  install_repo_file "$temporary" "$destination" "vendor $package"
   rm -f -- "$temporary"
   trap - RETURN
 }
@@ -136,13 +129,15 @@ while (($#)); do
 done
 
 reject_root
-require_silverblue_44
+require_silverblue
 if pending_deployment_exists; then
   info "An rpm-ostree deployment is already pending. Reboot before continuing."
   exit 10
 fi
 require_command rpm
 require_command sudo
+require_command curl
+require_command gpg
 
 mapfile -t requested_packages < <(read_manifest "$PACKAGE_MANIFEST")
 missing_packages=()
@@ -155,29 +150,37 @@ if ((${#missing_packages[@]} == 0)); then
   exit 0
 fi
 
-for missing in "${missing_packages[@]}"; do
-  if [[ $missing == tailscale ]]; then
-    provision_tailscale_repo
-    break
+# Only provision repositories needed by the missing packages.
+needs_package() {
+  local wanted=$1 candidate
+  for candidate in "${missing_packages[@]}"; do
+    [[ $candidate == "$wanted" ]] && return 0
+  done
+  return 1
+}
+
+while IFS='|' read -r package repo_url key_url fingerprint destination; do
+  [[ -n ${package:-} ]] || continue
+  [[ -n ${fingerprint:-} ]] || die "missing GPG fingerprint for $package in $VENDOR_REPOSITORY_MANIFEST"
+  if needs_package "$package"; then
+    provision_vendor_repo "$package" "$repo_url" "$key_url" "$fingerprint" "$destination"
   fi
-done
+done < <(read_manifest "$VENDOR_REPOSITORY_MANIFEST")
 
 arch=$(rpm --eval '%{_arch}')
+fedora_ver=$(fedora_version)
 while IFS='|' read -r package owner project fingerprint; do
-  [[ -n ${package:-} && ${package:0:1} != '#' ]] || continue
+  [[ -n ${package:-} ]] || continue
   [[ -n ${fingerprint:-} ]] || die "missing GPG fingerprint for $package in $REPOSITORY_MANIFEST"
-  for missing in "${missing_packages[@]}"; do
-    if [[ $missing == "$package" ]]; then
-      provision_copr_repo "$package" "$owner" "$project" "$arch" "$fingerprint"
-      break
-    fi
-  done
-done < "$REPOSITORY_MANIFEST"
+  if needs_package "$package"; then
+    provision_copr_repo "$package" "$owner" "$project" "$arch" "$fingerprint" "$fedora_ver"
+  fi
+done < <(read_manifest "$REPOSITORY_MANIFEST")
 
 info "Layering missing packages: ${missing_packages[*]}"
 run_root rpm-ostree install "${missing_packages[@]}"
 
-if [[ $DRY_RUN == true ]]; then
+if is_dry_run; then
   info "Dry run complete; a real package installation would require a reboot before continuing"
   exit 0
 else

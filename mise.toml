@@ -1,23 +1,34 @@
-# fedora_laptop: user-local tools and dotfiles.
-# Install Mise to ~/.local/bin, then: mise install --locked && mise dot apply
+# fedora_laptop: rolling user-local tools and dotfiles.
+# Install Mise to ~/.local/bin, then: mise install && mise upgrade
 min_version = { hard = "2026.9.4" }
 
-[tool_config]
-locked = true
-
-# NOTE: starship lives in mise.toolbox.toml (dev container only), never here.
 [tools]
-"aqua:herdrdev/herdr" = "0.9.1"
-yazi = "26.9.1"
-neovim = "0.12.5"
-tmux = "3.7c"
-fzf = "0.74.4"
-bat = "0.26.1"
-eza = "0.23.5"
-zoxide = "0.10.0"
-gh = "2.101.0"
-jj = "0.45.1"
-python = "3.14.7"
+"aqua:herdrdev/herdr" = "latest"
+yazi = "latest"
+tmux = "latest"
+fzf = "latest"
+bat = "latest"
+eza = "latest"
+zoxide = "latest"
+gh = "latest"
+jj = "latest"
+opencode = "latest"
+neovim = "latest"
+ripgrep = "latest"
+tree-sitter = "latest"
+starship = "latest"
+# Node provides npm for Mason's npm-based packages (prettier,
+# markdownlint-cli2) after the old system nodejs layer is gone.
+node = "latest"
+# Binaries the Neovim config shells out to but nothing installs:
+# lazygit (<leader>gg) and prettierd (conform for JS/TS).
+lazygit = "latest"
+"npm:@fsouza/prettierd" = "latest"
+# Snacks explorer searching and Telescope require fd (rg/find fallbacks
+# do not cover the explorer source).
+fd = "latest"
+
+# Language runtimes belong in each project's Mise configuration.
 
 [dotfiles]
 "~/.bash_aliases" = { source = "dotfiles/bash/.bash_aliases", mode = "symlink" }
@@ -25,7 +36,6 @@ python = "3.14.7"
 "~/.bash_profile" = { source = "dotfiles/bash/.bash_profile", mode = "symlink" }
 "~/.bashrc" = { source = "dotfiles/bash/.bashrc", mode = "symlink" }
 "~/.inputrc" = { source = "dotfiles/bash/.inputrc", mode = "symlink" }
-"~/.profile" = { source = "dotfiles/bash/.profile", mode = "symlink" }
 "~/.config/fedora-laptop" = { source = "dotfiles/bash/.config/fedora-laptop", mode = "symlink-each" }
 "~/.config/ghostty" = { source = "dotfiles/ghostty/.config/ghostty", mode = "symlink-each" }
 "~/.config/herdr" = { source = "dotfiles/herdr/.config/herdr", mode = "symlink-each" }
@@ -33,5 +43,6 @@ python = "3.14.7"
 "~/.config/noctalia" = { source = "dotfiles/noctalia/.config/noctalia", mode = "symlink-each" }
 "~/.config/tmux" = { source = "dotfiles/tmux/.config/tmux", mode = "symlink-each" }
 "~/.config/yazi" = { source = "dotfiles/yazi/.config/yazi", mode = "symlink-each" }
-"~/.local/bin" = { source = "dotfiles/niri/.local/bin", mode = "symlink-each" }
+"~/.local/bin" = { source = "dotfiles/local-bin/.local/bin", mode = "symlink-each" }
+"~/.config/systemd/user" = { source = "dotfiles/systemd/.config/systemd/user", mode = "symlink-each" }
 "~/.config/starship.toml" = { source = "dotfiles/starship/.config/starship.toml", mode = "symlink" }

@@ -1,0 +1,6 @@
+[Unit]
+Description=Notify-only update check for the Atomic desktop (OS + Flatpak)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/fedora-update-check

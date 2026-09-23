@@ -34,7 +34,7 @@ if command -v fc-match >/dev/null 2>&1 && [[ $(fc-match -f '%{family}' 'JetBrain
   exit 0
 fi
 
-if [[ $DRY_RUN == true ]]; then
+if is_dry_run; then
   info "Would download and verify JetBrainsMono Nerd Font $FONT_VERSION into $FONT_DIR"
   exit 0
 fi

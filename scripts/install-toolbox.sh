@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# Create the fedora-laptop-dev Toolbx and install its minimal DNF set.
+# Create the Toolbx dev container and install its minimal DNF set.
 # Personal CLI tools inside the container are managed by Mise.
 set -Eeuo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 # shellcheck source=common.sh
 source "$SCRIPT_DIR/common.sh"
-
-readonly TOOLBOX_NAME=fedora-laptop-dev
 
 usage() {
   printf 'Usage: %s [--profile NAME] [--dry-run]\n' "${0##*/}"
@@ -30,7 +28,8 @@ done
 reject_root
 require_command toolbox
 
-if ! toolbox list --containers 2>/dev/null | grep -q "$TOOLBOX_NAME"; then
+if ! toolbox list --containers 2>/dev/null \
+  | awk -v name="$TOOLBOX_NAME" '$2 == name { found = 1 } END { exit !found }'; then
   # -y auto-downloads the matching fedora-toolbox image on first run.
   run toolbox create --assumeyes "$TOOLBOX_NAME"
 else
@@ -39,11 +38,9 @@ fi
 
 mapfile -t pkgs < <(read_manifest "$MANIFEST_DIR/toolbox-packages.txt")
 if ((${#pkgs[@]})); then
-  if [[ $DRY_RUN == true ]]; then
-    print_command toolbox run --container "$TOOLBOX_NAME" sudo dnf install -y "${pkgs[@]}"
-  else
-    toolbox run --container "$TOOLBOX_NAME" sudo dnf install -y "${pkgs[@]}"
-  fi
+  # Intentionally unconditional: `dnf install -y` is idempotent and keeps the
+  # container converged on reruns without extra probing logic.
+  run toolbox run --container "$TOOLBOX_NAME" sudo dnf install -y "${pkgs[@]}"
 fi
 
 info "Toolbx phase complete; project runtimes inside $TOOLBOX_NAME are managed by Mise"

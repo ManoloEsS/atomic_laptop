@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Configure laptop services: laptop-specific keyd/wifi plus shared
+# Docker/SSH/Tailscale functionality contract.
 set -Eeuo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
@@ -6,8 +8,6 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 source "$SCRIPT_DIR/common.sh"
 
 REPLACE=false
-ENABLE_DOCKER=false
-ENABLE_TAILSCALE=false
 ENABLE_KEYD=false
 KEYD_SOURCE="$REPO_ROOT/system/keyd/default.conf"
 KEYD_DESTINATION=/etc/keyd/default.conf
@@ -42,19 +42,35 @@ install_managed_file() {
 }
 
 usage() {
-  printf 'Usage: %s [--profile NAME] [--dry-run] [--replace] [--enable-keyd] [--enable-docker] [--enable-tailscale]\n' "${0##*/}"
+  printf 'Usage: %s [--profile NAME] [--dry-run] [--replace] [--enable-keyd]\n' "${0##*/}"
 }
 
 enable_service() {
   local unit=$1
   if ! unit_exists "$unit"; then
-    warn "service unit is not installed; skipping: $unit"
+    warn "required laptop service is not installed: $unit"
     return
   fi
-  if systemctl is-enabled --quiet "$unit" && systemctl is-active --quiet "$unit"; then
-    info "Service already enabled and active: $unit"
+  # `enable --now` is idempotent; no need to probe state first.
+  run_root systemctl enable --now "$unit"
+  info "Enabled laptop service: $unit"
+}
+
+allow_ssh_in_default_zone() {
+  if ! unit_exists firewalld.service || ! systemctl is-active --quiet firewalld.service; then
+    warn "firewalld is unavailable; SSH firewall access was not changed"
+    return
+  fi
+
+  command -v firewall-cmd >/dev/null 2>&1 || { warn "firewall-cmd is unavailable; SSH firewall access was not changed"; return; }
+  local zone
+  zone=$(firewall-cmd --get-default-zone)
+  if firewall-cmd --zone "$zone" --query-service ssh >/dev/null 2>&1; then
+    info "SSH already allowed in firewalld zone: $zone"
   else
-    run_root systemctl enable --now "$unit"
+    run_root firewall-cmd --permanent --zone "$zone" --add-service ssh
+    run_root firewall-cmd --reload
+    info "Allowed SSH in firewalld zone: $zone"
   fi
 }
 
@@ -68,8 +84,6 @@ while (($#)); do
       ;;
     --replace) REPLACE=true ;;
     --enable-keyd) ENABLE_KEYD=true ;;
-    --enable-docker) ENABLE_DOCKER=true ;;
-    --enable-tailscale) ENABLE_TAILSCALE=true ;;
     -h|--help) usage; exit 0 ;;
     *) usage_error "unknown option: $1" ;;
   esac
@@ -77,7 +91,7 @@ while (($#)); do
 done
 
 reject_root
-require_silverblue_44
+require_silverblue
 require_booted_deployment_current
 require_command sudo
 require_command systemctl
@@ -104,7 +118,7 @@ EOF
         warn "keyd check reports warnings only; proceeding with reviewed config"
       fi
     fi
-  elif [[ $DRY_RUN == true ]]; then
+  elif is_dry_run; then
     warn "keyd is not installed in the booted deployment; validation is skipped during dry-run"
   else
     die "keyd is not installed; run install-packages.sh and reboot first"
@@ -142,7 +156,7 @@ fi
 # WiFi power save is always managed (low-risk latency fix, not opt-in).
 # Takes effect on NetworkManager restart/reboot; the installer never reboots.
 install_managed_file "$WIFI_SOURCE" "$WIFI_DESTINATION" "WiFi powersave"
-if [[ $DRY_RUN != true ]] && command -v iw >/dev/null 2>&1; then
+if ! is_dry_run && command -v iw >/dev/null 2>&1; then
   while IFS= read -r iface; do
     if iw dev "$iface" get power_save 2>/dev/null | grep -qi off; then
       info "WiFi power save already off: $iface"
@@ -152,40 +166,32 @@ if [[ $DRY_RUN != true ]] && command -v iw >/dev/null 2>&1; then
   done < <(iw dev 2>/dev/null | awk '$1=="Interface"{print $2}')
 fi
 
-report_service() {
+report_base_service() {
   local unit=$1
   if ! unit_exists "$unit"; then
-    warn "base service not installed (left alone): $unit"
+    warn "base service absent (left alone): $unit"
   elif systemctl is-active --quiet "$unit"; then
     info "base service active (left alone): $unit"
   else
-    warn "base service inactive (left alone, enable manually if wanted): $unit"
+    warn "base service inactive (left alone): $unit"
   fi
 }
 
+for unit in "${DESKTOP_SERVICES[@]}"; do
+  enable_service "$unit"
+done
+allow_ssh_in_default_zone
+
 # Base-image services are observed, never managed by this installer.
-report_service NetworkManager.service
-report_service firewalld.service
-report_service fstrim.timer
+report_base_service NetworkManager.service
+report_base_service firewalld.service
+report_base_service fstrim.timer
 if systemctl is-active --quiet tuned-ppd.service || systemctl is-active --quiet power-profiles-daemon.service; then
   info "power-profile backend active (left alone)"
-elif unit_exists tuned-ppd.service || unit_exists power-profiles-daemon.service; then
-  warn "power-profile backend installed but inactive (left alone; Noctalia power controls unavailable)"
 else
-  warn "no power-profile backend installed (left alone)"
+  warn "no active power-profile backend (Noctalia power controls may be unavailable)"
 fi
 
-if [[ $ENABLE_DOCKER == true ]]; then
-  command -v docker >/dev/null 2>&1 || die "--enable-docker requested, but docker is not installed"
-  unit_exists docker.service || die "--enable-docker requested, but docker.service is unavailable"
-  enable_service docker.service
-fi
-
-if unit_exists tailscaled.service; then
-  enable_service tailscaled.service
-  info 'Tailscale service enabled; run "sudo tailscale up" to authenticate'
-else
-  warn "tailscaled.service is not installed; rerun install-packages.sh and reboot first"
-fi
-
-info "System configuration complete; firewall zone and zram settings were left unchanged"
+info 'Tailscale service is ready; authenticate this fresh machine with "sudo tailscale up"'
+info 'Docker service is ready with no migrated containers or volumes'
+info "System configuration complete for profile: $PROFILE"

@@ -1,8 +1,19 @@
-# Host rpm-ostree layers: session/system integration only.
-# One transaction, one reboot. Base image packages are never listed here.
+# Host packages required by the laptop profile.
+# Packages already in the base image are checked but not layered again.
 niri
 noctalia
 ghostty
 keyd
 wtype
+# Neovim's native plugin builds and Wayland clipboard integration.
+gcc
+make
+wl-clipboard
+# Provides /usr/bin/git for the Neovim config clone; the base image and
+# noctalia already satisfy this, so it is normally skipped, not layered.
+git-core
 tailscale
+openssh-server
+docker-ce
+docker-buildx-plugin
+docker-compose-plugin
