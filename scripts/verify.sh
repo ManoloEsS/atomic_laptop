@@ -278,8 +278,24 @@ if command -v flatpak >/dev/null 2>&1; then
       fail "Flatpak missing: $app"
     fi
   done < <(read_manifest "$MANIFEST_DIR/flatpaks.txt")
+  # Extra launch probe for the RDP client only; WARN so a headless/container
+  # environment without GUI integration does not fail an otherwise healthy install.
+  if flatpak info --system com.freerdp.FreeRDP >/dev/null 2>&1 &&
+     flatpak run --command=sdl-freerdp com.freerdp.FreeRDP --version >/dev/null 2>&1; then
+    pass "FreeRDP Flatpak command launches"
+  else
+    verify_warn "FreeRDP Flatpak command is unavailable"
+  fi
 else
   fail "Flatpak command unavailable"
+fi
+
+if ! command -v xdg-settings >/dev/null 2>&1; then
+  verify_warn "xdg-settings unavailable; default browser was not checked"
+elif [[ $(xdg-settings get default-web-browser 2>/dev/null || true) == "$FIREFOX_DESKTOP_FILE" ]]; then
+  pass "default browser is Firefox"
+else
+  fail "default browser is not Firefox (got $(xdg-settings get default-web-browser 2>/dev/null || echo unknown))"
 fi
 
 if command -v toolbox >/dev/null 2>&1; then

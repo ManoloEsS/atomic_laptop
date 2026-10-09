@@ -20,7 +20,7 @@ User-local Mise (rolling latest, survives rebases)
   herdr, yazi, neovim, tmux, fzf, bat, eza,
   zoxide, gh, jj, opencode, ripgrep, tree-sitter,
   starship, node, lazygit, prettierd, fd, go.
-  Declared in mise.toml (no lockfile by design). Dotfiles via mise dot apply.
+  Declared in mise.toml (no lockfile by design). Dotfiles via `mise bootstrap dotfiles`.
   Linked as the global Mise config, so tools resolve in every directory.
   Go stays global; other project language runtimes stay per-project.
 
@@ -32,7 +32,9 @@ Toolbx (project runtimes)
   via its `container` module.
 
 Flatpak (system-wide)
-  Firefox from Flathub, declared in manifests/flatpaks.txt.
+  Firefox and FreeRDP from Flathub, declared in manifests/flatpaks.txt.
+  Firefox is set and verified as the default browser; FreeRDP backs the
+  optional profile-configured `win-rdp` launcher.
 ```
 
 Neovim's configuration is kept in the independent kickstart.nvim

@@ -1,9 +1,10 @@
 # Portable Bash setup for the Fedora workstation.
 
-export EDITOR="nvim"
-export VISUAL="nvim"
-export GIT_EDITOR="nvim"
-export SUDO_EDITOR="nvim"
+export EDITOR="${HOME}/.local/share/mise/shims/nvim"
+export VISUAL="${EDITOR}"
+export GIT_EDITOR="${EDITOR}"
+export SUDO_EDITOR="${EDITOR}"
+export SYSTEMD_EDITOR="${EDITOR}"
 export BAT_THEME="ansi"
 export MANROFFOPT="-c"
 export MANPAGER="sh -c 'col -bx | bat -l man -p'"

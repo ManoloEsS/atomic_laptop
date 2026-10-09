@@ -20,6 +20,7 @@ MIN_FEDORA_VERSION=44
 
 # Single source of truth for names shared by install + verify scripts.
 TOOLBOX_NAME=dev
+FIREFOX_DESKTOP_FILE="org.mozilla.firefox.desktop"
 DESKTOP_SERVICES=(docker.service sshd.service tailscaled.service)
 MISE_CONFIG_PAIRS=("config.toml:mise.toml")
 
