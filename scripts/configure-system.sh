@@ -13,6 +13,8 @@ KEYD_SOURCE="$REPO_ROOT/system/keyd/default.conf"
 KEYD_DESTINATION=/etc/keyd/default.conf
 WIFI_SOURCE="$REPO_ROOT/system/NetworkManager/wifi-powersave.conf"
 WIFI_DESTINATION=/etc/NetworkManager/conf.d/wifi-powersave.conf
+BATTERY_HWDB_SOURCE="$REPO_ROOT/system/udev/61-battery-local.hwdb"
+BATTERY_HWDB_DESTINATION=/etc/udev/hwdb.d/61-battery-local.hwdb
 
 # Install one managed system file with backup/refusal semantics (keyd-style).
 install_managed_file() {
@@ -164,6 +166,32 @@ if ! is_dry_run && command -v iw >/dev/null 2>&1; then
       warn "WiFi power save still on ($iface); restart NetworkManager or reboot to apply"
     fi
   done < <(iw dev 2>/dev/null | awk '$1=="Interface"{print $2}')
+fi
+
+# UPower battery charge thresholds are always managed (pins Lenovo
+# conservation 75/80 via hwdb; Noctalia's Power toggle applies them).
+# Takes effect after hwdb update + trigger + upower restart; the installer
+# never reboots.
+battery_hwdb_needs_refresh=false
+if [[ ! -e $BATTERY_HWDB_DESTINATION ]] || ! cmp --silent "$BATTERY_HWDB_SOURCE" "$BATTERY_HWDB_DESTINATION"; then
+  battery_hwdb_needs_refresh=true
+fi
+install_managed_file "$BATTERY_HWDB_SOURCE" "$BATTERY_HWDB_DESTINATION" "UPower battery thresholds"
+if [[ $battery_hwdb_needs_refresh == true ]]; then
+  run_root systemd-hwdb update
+  run_root udevadm trigger --subsystem-match=power_supply --action=change
+  if ! unit_exists upower.service; then
+    warn "upower.service is not installed; thresholds apply once upower is present"
+  elif is_dry_run; then
+    run_root systemctl restart upower.service
+  elif systemctl is-active --quiet upower.service; then
+    run_root systemctl restart upower.service
+    info "Restarted upower; enable Noctalia Control Center > Power > Use charge thresholds"
+  else
+    warn "upower.service is not active; thresholds apply on next boot/service start"
+  fi
+else
+  info "UPower battery thresholds already in place"
 fi
 
 report_base_service() {

@@ -170,6 +170,29 @@ else
   fail "WiFi powersave configuration is missing or differs from repository"
 fi
 
+# Managed UPower battery thresholds (always expected on the laptop).
+battery_hwdb_source="$REPO_ROOT/system/udev/61-battery-local.hwdb"
+battery_hwdb_dest=/etc/udev/hwdb.d/61-battery-local.hwdb
+if [[ -r $battery_hwdb_dest && ! -L $battery_hwdb_dest ]] && cmp --silent "$battery_hwdb_source" "$battery_hwdb_dest"; then
+  pass "UPower battery thresholds configuration matches repository"
+else
+  fail "UPower battery thresholds configuration is missing or differs from repository"
+fi
+
+# Live threshold state is advisory: a travel-day toggle-off legitimately
+# leaves 95/100 until re-enabled, so this warns instead of failing.
+if [[ -r /sys/class/power_supply/BAT0/charge_control_start_threshold && -r /sys/class/power_supply/BAT0/charge_control_end_threshold ]]; then
+  live_start=$(cat /sys/class/power_supply/BAT0/charge_control_start_threshold 2>/dev/null || true)
+  live_end=$(cat /sys/class/power_supply/BAT0/charge_control_end_threshold 2>/dev/null || true)
+  if [[ $live_start == 75 && $live_end == 80 ]]; then
+    pass "Battery charge thresholds active: 75/80"
+  else
+    verify_warn "Battery charge thresholds not at 75/80 (got ${live_start:-?}/${live_end:-?}); enable Noctalia Power > Use charge thresholds, or travel mode is on"
+  fi
+else
+  verify_warn "no BAT0 charge-control interface; skipping live threshold check"
+fi
+
 # Effective radio state (needs a NetworkManager restart/reboot after install).
 if command -v iw >/dev/null 2>&1; then
   wifi_ifaces=$(iw dev 2>/dev/null | awk '$1=="Interface"{print $2}')

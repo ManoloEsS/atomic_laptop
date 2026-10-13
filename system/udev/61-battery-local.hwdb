@@ -1,0 +1,17 @@
+# Fedora Laptop: UPower battery charge thresholds (ThinkPad E14 Gen 5, BAT0).
+#
+# Noctalia's Control Center > Power > "Use charge thresholds" toggle calls
+# UPower's EnableChargeThreshold over D-Bus. UPower takes its start/stop pair
+# from the udev hwdb CHARGE_LIMIT property, not from Noctalia config.
+# Without this override the lookup falls through to the vendor default in
+# /usr/lib/udev/hwdb.d/60-upower-battery.hwdb (currently also 75,80, but
+# owned by the base image and subject to change). Pinning it here keeps
+# reinstalls deterministic and documents intent in the repo.
+#
+# 75,80 = Lenovo conservation behavior: resume charging below 75%, stop at
+# 80%. Best for a mostly-docked Li-poly battery; 5% hysteresis avoids
+# micro-cycling. For travel days, turn the Noctalia toggle OFF to charge to
+# 100%, then turn it back ON when docked again.
+# Managed by scripts/configure-system.sh; local edits will conflict.
+battery:*:*:dmi:*
+ CHARGE_LIMIT=75,80

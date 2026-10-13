@@ -187,6 +187,39 @@ Fedora default parks the radio and adds wake-up latency spikes that power
 profiles (Noctalia/tuned) do not govern. Battery cost is negligible. The
 setting takes effect on NetworkManager restart or reboot.
 
+## Battery charge thresholds (75/80)
+
+The laptop battery is Li-poly (`BAT0`) and stays docked most of the time,
+so charging is capped for longevity via UPower hwdb, applied from Noctalia:
+
+- Source: `system/udev/61-battery-local.hwdb` (`CHARGE_LIMIT=75,80`,
+  Lenovo conservation behavior: resume below 75%, stop at 80%).
+- Installed to `/etc/udev/hwdb.d/61-battery-local.hwdb` by
+  `scripts/configure-system.sh`, followed by `systemd-hwdb update`,
+  a `power_supply` trigger, and a `upower` restart.
+- Effective only when Noctalia `Control Center > Power > Use charge
+  thresholds` is ON (UPower `EnableChargeThreshold`). The toggle persists
+  across reboot; the hwdb file makes reinstalls deterministic.
+- Check: `cat /sys/class/power_supply/BAT0/charge_control_{start,end}_threshold`
+  should read `75` / `80`; `upower -i` should agree. `verify.sh` fails if
+  the file drifts and warns (not fails) if live values differ, since
+  travel mode legitimately leaves `95/100`.
+- Above 80% after enabling will not drain on its own: unplug to ~75%
+  once, replug, and it holds at 80% from then on.
+- One-time seed (stuck at `95/100` with the toggle ON): this host had
+  the toggle enabled before the hwdb pin existed, leaving UPower with a
+  stale `95/80` that the EC rejects (`start > end`). Seed once, then
+  restart UPower so D-Bus re-reads:
+  `echo 75 | sudo tee /sys/class/power_supply/BAT0/charge_control_start_threshold`
+  `echo 80 | sudo tee /sys/class/power_supply/BAT0/charge_control_end_threshold`
+  `sudo systemctl restart upower`
+  Fresh installs with the hwdb file present before first enable do not
+  need this.
+
+Travel day (charge to 100%): turn the Noctalia toggle OFF the night
+before, charge on AC to full, travel, then turn it back ON when docked.
+UPower remembers OFF across reboot, so re-enabling is a deliberate step.
+
 ## Security boundaries
 
 The installer crosses privilege boundaries only in package and system phases.
