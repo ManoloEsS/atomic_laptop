@@ -193,6 +193,23 @@ else
   verify_warn "no BAT0 charge-control interface; skipping live threshold check"
 fi
 
+# Boot-time re-application (heals the EC reset to 95/100 on every boot).
+battery_apply_source="$REPO_ROOT/system/battery/battery-thresholds-apply"
+battery_apply_dest=/usr/local/bin/battery-thresholds-apply
+if [[ -r $battery_apply_dest && ! -L $battery_apply_dest ]] && cmp --silent "$battery_apply_source" "$battery_apply_dest" && [[ -x $battery_apply_dest ]]; then
+  pass "Battery threshold helper matches repository and is executable"
+else
+  fail "Battery threshold helper is missing, differs from repository, or not executable"
+fi
+battery_service_source="$REPO_ROOT/system/systemd/battery-thresholds.service"
+battery_service_dest=/etc/systemd/system/battery-thresholds.service
+if [[ -r $battery_service_dest && ! -L $battery_service_dest ]] && cmp --silent "$battery_service_source" "$battery_service_dest"; then
+  pass "Battery threshold service matches repository"
+else
+  fail "Battery threshold service is missing or differs from repository"
+fi
+check_service battery-thresholds.service
+
 # Effective radio state (needs a NetworkManager restart/reboot after install).
 if command -v iw >/dev/null 2>&1; then
   wifi_ifaces=$(iw dev 2>/dev/null | awk '$1=="Interface"{print $2}')

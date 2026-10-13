@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Re-apply UPower battery charge thresholds at boot (ThinkPad E14 Gen 5).
+#
+# UPower remembers the Noctalia toggle across reboot
+# (/var/lib/upower/charging-threshold-status), but on this machine the EC
+# resets sysfs to 95/100 on every boot and UPower does not rewrite the start
+# threshold, leaving a stale 95/80 that protects nothing. This helper seeds
+# sysfs from the hwdb CHARGE_LIMIT property when (and only when) thresholds
+# are enabled, so a travel-day toggle-OFF is always respected.
+#
+# Managed by scripts/configure-system.sh; runs as root via
+# battery-thresholds.service. Exits 0 on every skip path so the unit
+# reports success when there is nothing to do.
+set -Eeuo pipefail
+
+STATUS_FILE=/var/lib/upower/charging-threshold-status
+[[ -r $STATUS_FILE ]] || exit 0
+[[ $(cat "$STATUS_FILE") == 1 ]] || exit 0
+
+applied=false
+for bat_path in /sys/class/power_supply/BAT*/; do
+  [[ -d $bat_path ]] || continue
+  name=$(basename "$bat_path")
+  start_attr="${bat_path}charge_control_start_threshold"
+  end_attr="${bat_path}charge_control_end_threshold"
+  [[ -w $start_attr && -w $end_attr ]] || continue
+  limit=$(udevadm info --query=property --path="/sys/class/power_supply/${name}" 2>/dev/null \
+    | awk -F= '$1=="CHARGE_LIMIT"{print $2}')
+  [[ -n ${limit:-} ]] || continue
+  want_start=${limit%%,*}
+  want_end=${limit##*,}
+  if [[ $want_start != _ && -n $want_start ]]; then
+    [[ $(cat "$start_attr") == "$want_start" ]] || echo "$want_start" > "$start_attr"
+  fi
+  if [[ $want_end != _ && -n $want_end ]]; then
+    [[ $(cat "$end_attr") == "$want_end" ]] || echo "$want_end" > "$end_attr"
+  fi
+  printf 'battery thresholds applied: %s start=%s end=%s\n' "$name" "$want_start" "$want_end"
+  applied=true
+done
+
+[[ $applied == true ]] || exit 0

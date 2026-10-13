@@ -15,10 +15,15 @@ WIFI_SOURCE="$REPO_ROOT/system/NetworkManager/wifi-powersave.conf"
 WIFI_DESTINATION=/etc/NetworkManager/conf.d/wifi-powersave.conf
 BATTERY_HWDB_SOURCE="$REPO_ROOT/system/udev/61-battery-local.hwdb"
 BATTERY_HWDB_DESTINATION=/etc/udev/hwdb.d/61-battery-local.hwdb
+BATTERY_APPLY_SOURCE="$REPO_ROOT/system/battery/battery-thresholds-apply"
+BATTERY_APPLY_DESTINATION=/usr/local/bin/battery-thresholds-apply
+BATTERY_SERVICE_SOURCE="$REPO_ROOT/system/systemd/battery-thresholds.service"
+BATTERY_SERVICE_DESTINATION=/etc/systemd/system/battery-thresholds.service
 
 # Install one managed system file with backup/refusal semantics (keyd-style).
 install_managed_file() {
-  local source=$1 destination=$2 label=$3 backup
+  local source=$1 destination=$2 label=$3 mode=${4:-0644}
+  local backup
   [[ -r $source ]] || die "$label source is missing: $source"
 
   if [[ -L $destination ]] || [[ -e $destination && ! -f $destination ]]; then
@@ -36,10 +41,18 @@ install_managed_file() {
   fi
 
   if [[ ! -e $destination ]] || ! cmp --silent "$source" "$destination"; then
-    run_root install -D -o root -g root -m 0644 "$source" "$destination"
+    run_root install -D -o root -g root -m "$mode" "$source" "$destination"
     info "Installed managed $label configuration"
   else
     info "Managed $label configuration already in place"
+  fi
+
+  if [[ -e $destination && ! -L $destination ]]; then
+    current_mode=$(stat -c %a "$destination" 2>/dev/null || true)
+    if [[ -n $current_mode && $current_mode != "${mode#0}" && $current_mode != "$mode" ]]; then
+      run_root chmod "$mode" "$destination"
+      info "Fixed mode on managed $label configuration ($mode)"
+    fi
   fi
 }
 
@@ -193,6 +206,21 @@ if [[ $battery_hwdb_needs_refresh == true ]]; then
 else
   info "UPower battery thresholds already in place"
 fi
+
+# Boot-time re-application: the EC resets sysfs to 95/100 on every boot and
+# UPower does not rewrite the start threshold on its own. The helper only
+# writes when the UPower toggle is on, so travel mode is respected.
+battery_service_needs_reload=false
+if [[ ! -e $BATTERY_SERVICE_DESTINATION ]] || ! cmp --silent "$BATTERY_SERVICE_SOURCE" "$BATTERY_SERVICE_DESTINATION"; then
+  battery_service_needs_reload=true
+fi
+install_managed_file "$BATTERY_APPLY_SOURCE" "$BATTERY_APPLY_DESTINATION" "battery threshold helper" 0755
+install_managed_file "$BATTERY_SERVICE_SOURCE" "$BATTERY_SERVICE_DESTINATION" "battery threshold service"
+if [[ $battery_service_needs_reload == true ]]; then
+  run_root systemctl daemon-reload
+  info "Reloaded systemd for battery threshold service"
+fi
+enable_service battery-thresholds.service
 
 report_base_service() {
   local unit=$1

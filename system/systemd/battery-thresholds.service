@@ -1,0 +1,22 @@
+# Fedora Laptop: re-apply UPower battery charge thresholds at boot.
+#
+# The EC resets sysfs to 95/100 on every boot and UPower does not rewrite
+# the start threshold on its own, so without this unit the 75/80 cap from
+# 61-battery-local.hwdb silently stops working after a reboot. The helper
+# only writes when UPower's enabled state is on, so travel-mode toggle-OFF
+# is respected. ExecStartPost refreshes UPower so its D-Bus properties (and
+# the Noctalia Power tab) stop showing the stale start value.
+# Managed by scripts/configure-system.sh; local edits will conflict.
+[Unit]
+Description=Re-apply battery charge thresholds (UPower/ThinkPad)
+After=upower.service systemd-udevd.service
+ConditionPathExists=/sys/class/power_supply/BAT0/charge_control_end_threshold
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/battery-thresholds-apply
+ExecStartPost=/usr/bin/systemctl try-restart upower.service
+
+[Install]
+WantedBy=multi-user.target

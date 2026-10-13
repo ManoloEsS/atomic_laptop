@@ -197,6 +197,14 @@ so charging is capped for longevity via UPower hwdb, applied from Noctalia:
 - Installed to `/etc/udev/hwdb.d/61-battery-local.hwdb` by
   `scripts/configure-system.sh`, followed by `systemd-hwdb update`,
   a `power_supply` trigger, and a `upower` restart.
+- Re-applied at boot by `battery-thresholds.service`
+  (`system/systemd/battery-thresholds.service` +
+  `/usr/local/bin/battery-thresholds-apply`): the EC resets sysfs to
+  95/100 on every boot and UPower does not rewrite the start threshold
+  on its own, so without the unit the cap silently stops working after
+  a reboot. The helper only writes when the UPower toggle is on, so
+  travel mode is respected; it refreshes UPower afterwards so the
+  Noctalia Power tab stops showing the stale start value.
 - Effective only when Noctalia `Control Center > Power > Use charge
   thresholds` is ON (UPower `EnableChargeThreshold`). The toggle persists
   across reboot; the hwdb file makes reinstalls deterministic.
@@ -206,10 +214,11 @@ so charging is capped for longevity via UPower hwdb, applied from Noctalia:
   travel mode legitimately leaves `95/100`.
 - Above 80% after enabling will not drain on its own: unplug to ~75%
   once, replug, and it holds at 80% from then on.
-- One-time seed (stuck at `95/100` with the toggle ON): this host had
-  the toggle enabled before the hwdb pin existed, leaving UPower with a
-  stale `95/80` that the EC rejects (`start > end`). Seed once, then
-  restart UPower so D-Bus re-reads:
+- One-time seed (stuck at `95/100` with the toggle ON): only needed if
+  the toggle was enabled before the hwdb pin existed, leaving UPower
+  with a stale `95/80` that the EC rejects (`start > end`). The boot
+  service heals this automatically on next boot; for immediate effect:
+  `sudo systemctl start battery-thresholds.service`, or manually:
   `echo 75 | sudo tee /sys/class/power_supply/BAT0/charge_control_start_threshold`
   `echo 80 | sudo tee /sys/class/power_supply/BAT0/charge_control_end_threshold`
   `sudo systemctl restart upower`
