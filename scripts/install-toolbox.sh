@@ -43,4 +43,16 @@ if ((${#pkgs[@]})); then
   run toolbox run --container "$TOOLBOX_NAME" sudo dnf install -y "${pkgs[@]}"
 fi
 
+mapfile -t retired_pkgs < <(read_manifest "$MANIFEST_DIR/retired-toolbox-packages.txt")
+installed_retired_pkgs=()
+for package in "${retired_pkgs[@]}"; do
+  if toolbox run --container "$TOOLBOX_NAME" rpm -q --quiet "$package"; then
+    installed_retired_pkgs+=("$package")
+  fi
+done
+if ((${#installed_retired_pkgs[@]})); then
+  info "Removing retired Docker/Moby packages from Toolbx: ${installed_retired_pkgs[*]}"
+  run toolbox run --container "$TOOLBOX_NAME" sudo dnf remove -y "${installed_retired_pkgs[@]}"
+fi
+
 info "Toolbx phase complete; project runtimes inside $TOOLBOX_NAME are managed by Mise"

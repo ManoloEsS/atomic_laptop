@@ -48,6 +48,14 @@ fi
 
 [[ $- != *i* ]] && return
 
+# In the managed dev Toolbx, forward Podman commands to the host. This keeps
+# container storage, networking, and project bind mounts in the host's rootless
+# Podman instead of trying to nest a second engine inside Toolbx.
+if [[ -r /run/.containerenv ]] && grep -q '^name="dev"$' /run/.containerenv \
+  && command -v flatpak-spawn >/dev/null 2>&1; then
+  alias podman='flatpak-spawn --host podman'
+fi
+
 shopt -s histappend
 HISTCONTROL="ignoredups"
 HISTSIZE=32768

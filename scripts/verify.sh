@@ -106,9 +106,24 @@ fi
 
 # Host commands include laptop tools, host-integrated services, and shared
 # Mise shims. keyd is opt-in: warn, don't fail.
-for command_name in niri noctalia ghostty wtype gcc make wl-copy nvim rg tree-sitter tailscale ssh docker; do
+for command_name in niri noctalia ghostty wtype gcc make wl-copy nvim rg tree-sitter tailscale ssh podman podman-compose; do
   check_command "$command_name"
 done
+if podman compose version >/dev/null 2>&1; then
+  pass "Podman Compose provider is available"
+else
+  fail "Podman Compose provider is unavailable"
+fi
+for package in docker-ce docker-ce-cli docker-buildx-plugin docker-compose-plugin; do
+  if rpm -q --quiet "$package"; then
+    fail "Docker package remains installed: $package"
+  fi
+done
+if systemctl is-enabled --quiet docker.service 2>/dev/null || systemctl is-active --quiet docker.service 2>/dev/null; then
+  fail "Docker system service is enabled or active"
+else
+  pass "Docker system service is not enabled or active"
+fi
 if command -v keyd >/dev/null 2>&1; then
   pass "command available: keyd"
 else
@@ -366,6 +381,22 @@ if toolbox list --containers 2>/dev/null \
     else
       verify_warn "Starship config was not checked inside Toolbx"
     fi
+    if toolbox run --container "$TOOLBOX_NAME" bash --noprofile -ic 'alias podman' 2>/dev/null \
+      | grep -Fq "flatpak-spawn --host podman"; then
+      pass "Toolbx Podman alias forwards to the host"
+    else
+      fail "Toolbx Podman alias is missing"
+    fi
+    if toolbox run --container "$TOOLBOX_NAME" flatpak-spawn --host podman --version >/dev/null 2>&1; then
+      pass "Toolbx can invoke host Podman"
+    else
+      fail "Toolbx cannot invoke host Podman via flatpak-spawn"
+    fi
+    while IFS= read -r package; do
+      if toolbox run --container "$TOOLBOX_NAME" rpm -q --quiet "$package"; then
+        fail "retired Docker/Moby package remains in Toolbx: $package"
+      fi
+    done < <(read_manifest "$MANIFEST_DIR/retired-toolbox-packages.txt")
   else
     fail "Toolbx container missing: $TOOLBOX_NAME"
   fi

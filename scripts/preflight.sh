@@ -30,7 +30,7 @@ require_command sudo
 require_command systemctl
 
 # Manifests must exist and parse to at least one entry.
-for manifest in host-packages.txt external-repositories.conf vendor-repositories.conf toolbox-packages.txt flatpaks.txt; do
+for manifest in host-packages.txt retired-host-packages.txt external-repositories.conf vendor-repositories.conf toolbox-packages.txt retired-toolbox-packages.txt flatpaks.txt; do
   [[ -s $MANIFEST_DIR/$manifest ]] || die "missing manifest: $manifest"
   [[ -n $(read_manifest "$MANIFEST_DIR/$manifest") ]] || die "manifest has no entries: $manifest"
 done

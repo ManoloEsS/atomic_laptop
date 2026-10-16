@@ -1,0 +1,8 @@
+# Docker/Moby tools installed manually in older dev Toolboxes; the host Podman
+# alias replaces their container-engine role.
+docker-cli
+docker-buildx
+moby-engine
+moby-engine-nano
+moby-engine-rootless-extras
+moby-filesystem

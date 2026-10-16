@@ -13,7 +13,7 @@ Base image (assumed, never layered)
 
 Host rpm-ostree (one transaction, one reboot)
   niri, noctalia, ghostty, keyd, wtype, gcc, make, wl-clipboard,
-  tailscale, openssh-server, Docker CE + Compose/buildx.
+  tailscale, openssh-server, podman-compose. Podman is provided by the base.
   Declared in manifests/host-packages.txt.
 
 User-local Mise (rolling latest, survives rebases)
@@ -26,9 +26,10 @@ User-local Mise (rolling latest, survives rebases)
 
 Toolbx (project runtimes)
   dev container, minimal DNF (gcc, make,
-  wl-clipboard for Neovim builds/clipboard). The same rolling
-  Mise CLI tools are available inside the container. Starship is
-  global (host and Toolbx) and shows a `⬢ [dev]` marker inside containers
+  wl-clipboard for Neovim builds/clipboard). In interactive `dev` shells, the
+  `podman` alias forwards to host Podman with `flatpak-spawn --host podman`.
+  The same rolling Mise CLI tools are available inside the container. Starship
+  is global (host and Toolbx) and shows a `⬢ [dev]` marker inside containers
   via its `container` module.
 
 Flatpak (system-wide)
@@ -47,7 +48,7 @@ discarded) before applying links, so reruns follow the branch tip
 without touching local edits.
 
 Third-party host trust is limited to the Ghostty and keyd COPRs plus the
-official Docker and Tailscale vendor repos. All COPR definitions are
+official Tailscale vendor repo. All COPR definitions are
 package-scoped (`includepkgs`) with GPG checking; differing existing repo
 files refuse instead of overwriting. Every key's fingerprint is pinned — in
 `manifests/external-repositories.conf` for COPRs,
@@ -64,12 +65,12 @@ bash install.sh --dry-run
 bash install.sh
 ```
 
-Two passes. The first performs preflight and host package layering. If a new
-deployment needs booting, `scripts/install-packages.sh` exits with status
-`10`; `install.sh` stops without rebooting. Reboot manually, rerun the same
-command. The second pass configures keyd (opt-in), WiFi powersave, and the
-Docker/SSH/Tailscale services, installs the latest Mise tools, applies
-dotfiles (including the Neovim checkout and its link), adds Flatpaks,
+Two passes. The first performs preflight and converges host packages, including
+retiring the old Docker CE layers. If a new deployment needs booting,
+`scripts/install-packages.sh` exits with status `10`; `install.sh` stops without
+rebooting. Reboot manually, rerun the same command. The second pass configures
+keyd (opt-in), WiFi powersave, and the SSH/Tailscale services, installs the
+latest Mise tools, applies dotfiles (including the Neovim checkout and its link), adds Flatpaks,
 creates the Toolbx, and verifies.
 
 Common options:
@@ -143,13 +144,19 @@ Podman/Toolbox fails. The managed `.bashrc` repairs this automatically
 (before the non-interactive early return), so
 `toolbox enter dev` works from any Tailscale SSH shell.
 
+The Bash functions mirror the desktop workflow: `herdev` runs the default
+Herdr session inside the `dev` Toolbx, while `adm` attaches to the separate
+named `admin` session on the host.
+
 ## Verification and recovery
 
 Final phase runs `scripts/verify.sh`:
 
 ```sh
 rpm-ostree status
-systemctl status keyd tailscaled docker sshd
+systemctl status keyd sshd tailscaled
+podman info
+podman compose version
 mise bootstrap dotfiles status
 niri msg outputs
 ```
@@ -172,14 +179,26 @@ keyd recovery drill (an invalid map can break typing):
 
 Tailscale needs one manual step: `sudo tailscale up`.
 
-The installer enables Docker, `sshd`, and `tailscaled`, but does not
-authenticate or populate them. Docker starts with no migrated containers,
-images, or volumes.
+The installer enables `sshd` and `tailscaled`, but does not authenticate or
+populate them. Podman is rootless and daemonless; it is provided by the
+Silverblue base and does not need a system service. The host package layer adds
+`podman-compose` as Podman's Compose provider. In interactive `dev` shells, the
+`podman` alias uses `flatpak-spawn --host podman`, so commands run as your host
+user against host Podman's storage and networking. No Docker daemon, Docker
+group, or socket forwarding is configured.
+
+Dockerfiles and common Compose projects generally work with Podman; validate
+projects using Docker-specific behavior or advanced BuildKit features. Docker
+container/image/volume state is not migrated into Podman's separate storage.
+The installer removes old Docker CE host layers and the Docker/Moby packages
+previously installed manually in `dev`, but leaves existing Docker data and the
+old `/etc/yum.repos.d/docker-ce.repo` untouched. Inspect and remove that repo
+file separately after confirming it is no longer needed.
 
 Base services (NetworkManager, firewalld, fstrim, power-profile backend)
 are observed and reported, never enabled or changed by the installer, except
 that SSH is allowed in the default firewalld zone. Only `keyd` (opt-in),
-the Docker/SSH/Tailscale services, and the WiFi powersave config are managed.
+the SSH/Tailscale services, and the WiFi powersave config are managed.
 
 WiFi power save is unconditionally disabled via
 `system/NetworkManager/wifi-powersave.conf` (`wifi.powersave = 2`): the

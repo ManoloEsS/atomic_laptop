@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Configure laptop services: laptop-specific keyd/wifi plus shared
-# Docker/SSH/Tailscale functionality contract.
+# SSH/Tailscale functionality contract.
 set -Eeuo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
@@ -249,5 +249,5 @@ else
 fi
 
 info 'Tailscale service is ready; authenticate this fresh machine with "sudo tailscale up"'
-info 'Docker service is ready with no migrated containers or volumes'
+info 'Rootless Podman is provided by the Silverblue base; Compose uses podman-compose'
 info "System configuration complete for profile: $PROFILE"

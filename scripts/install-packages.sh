@@ -140,12 +140,17 @@ require_command curl
 require_command gpg
 
 mapfile -t requested_packages < <(read_manifest "$PACKAGE_MANIFEST")
+mapfile -t retired_packages < <(read_manifest "$MANIFEST_DIR/retired-host-packages.txt")
 missing_packages=()
+installed_retired_packages=()
 for package in "${requested_packages[@]}"; do
   rpm -q --quiet "$package" || missing_packages+=("$package")
 done
+for package in "${retired_packages[@]}"; do
+  rpm -q --quiet "$package" && installed_retired_packages+=("$package")
+done
 
-if ((${#missing_packages[@]} == 0)); then
+if ((${#missing_packages[@]} == 0 && ${#installed_retired_packages[@]} == 0)); then
   info "All requested host packages are installed; no deployment change needed"
   exit 0
 fi
@@ -177,8 +182,21 @@ while IFS='|' read -r package owner project fingerprint; do
   fi
 done < <(read_manifest "$REPOSITORY_MANIFEST")
 
-info "Layering missing packages: ${missing_packages[*]}"
-run_root rpm-ostree install "${missing_packages[@]}"
+if ((${#missing_packages[@]} > 0 && ${#installed_retired_packages[@]} > 0)); then
+  info "Layering packages: ${missing_packages[*]}"
+  info "Removing retired packages: ${installed_retired_packages[*]}"
+  uninstall_args=()
+  for package in "${installed_retired_packages[@]}"; do
+    uninstall_args+=("--uninstall=$package")
+  done
+  run_root rpm-ostree install "${missing_packages[@]}" "${uninstall_args[@]}"
+elif ((${#missing_packages[@]} > 0)); then
+  info "Layering missing packages: ${missing_packages[*]}"
+  run_root rpm-ostree install "${missing_packages[@]}"
+else
+  info "Removing retired packages: ${installed_retired_packages[*]}"
+  run_root rpm-ostree uninstall "${installed_retired_packages[@]}"
+fi
 
 if is_dry_run; then
   info "Dry run complete; a real package installation would require a reboot before continuing"
