@@ -13,6 +13,8 @@ KEYD_SOURCE="$REPO_ROOT/system/keyd/default.conf"
 KEYD_DESTINATION=/etc/keyd/default.conf
 WIFI_SOURCE="$REPO_ROOT/system/NetworkManager/wifi-powersave.conf"
 WIFI_DESTINATION=/etc/NetworkManager/conf.d/wifi-powersave.conf
+PUBLIC_ZONE_SOURCE="$REPO_ROOT/system/firewalld/zones/public.xml"
+PUBLIC_ZONE_DESTINATION=/etc/firewalld/zones/public.xml
 BATTERY_HWDB_SOURCE="$REPO_ROOT/system/udev/61-battery-local.hwdb"
 BATTERY_HWDB_DESTINATION=/etc/udev/hwdb.d/61-battery-local.hwdb
 BATTERY_APPLY_SOURCE="$REPO_ROOT/system/battery/battery-thresholds-apply"
@@ -71,23 +73,11 @@ enable_service() {
   info "Enabled laptop service: $unit"
 }
 
-remove_public_rule_if_present() {
-  local query=$1 remove=$2
-  local -a scope=(--zone=public)
-
-  if firewall-cmd "${scope[@]}" "$query" >/dev/null 2>&1; then
-    run_root firewall-cmd "${scope[@]}" "$remove"
-  fi
-  scope=(--permanent --zone=public)
-  if firewall-cmd "${scope[@]}" "$query" >/dev/null 2>&1; then
-    run_root firewall-cmd "${scope[@]}" "$remove"
-  fi
-}
-
 configure_network_zones() {
   local profile_env="$REPO_ROOT/profiles/$PROFILE/profile.env"
   local uuid name type zone trusted_uuid
   local -a trusted_uuids=()
+  local public_zone_needs_reload=false
 
   if [[ -r $profile_env ]]; then
     # shellcheck disable=SC1090
@@ -99,6 +89,15 @@ configure_network_zones() {
   require_command firewall-cmd
   if ! unit_exists firewalld.service || ! systemctl is-active --quiet firewalld.service; then
     die "firewalld must be installed and active to configure network zones safely"
+  fi
+
+  if [[ ! -e $PUBLIC_ZONE_DESTINATION ]] ||
+    ! cmp --silent "$PUBLIC_ZONE_SOURCE" "$PUBLIC_ZONE_DESTINATION"; then
+    public_zone_needs_reload=true
+  fi
+  install_managed_file "$PUBLIC_ZONE_SOURCE" "$PUBLIC_ZONE_DESTINATION" "public firewalld zone"
+  if [[ $public_zone_needs_reload == true ]]; then
+    run_root firewall-cmd --reload
   fi
 
   if ((${#trusted_uuids[@]} == 0)); then
@@ -139,9 +138,6 @@ configure_network_zones() {
   if ip link show tailscale0 >/dev/null 2>&1; then
     run_root firewall-cmd --zone=trusted --change-interface=tailscale0
   fi
-  remove_public_rule_if_present --query-service=ssh --remove-service=ssh
-  remove_public_rule_if_present --query-port=1025-65535/tcp --remove-port=1025-65535/tcp
-  remove_public_rule_if_present --query-port=1025-65535/udp --remove-port=1025-65535/udp
 }
 
 while (($#)); do
