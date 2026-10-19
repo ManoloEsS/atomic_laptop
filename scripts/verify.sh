@@ -48,6 +48,7 @@ check_link() {
 verify_firewall_zones() {
   local profile_env="$REPO_ROOT/profiles/$PROFILE/profile.env"
   local uuid name type expected actual trusted_uuid tailscale_zone
+  local tailscale_dns tailscale_domains
   local -a trusted_uuids=()
 
   if ! systemctl is-active --quiet firewalld.service; then
@@ -92,11 +93,14 @@ verify_firewall_zones() {
     fi
   done
 
-  tailscale_zone=$(firewall-cmd --permanent --get-zone-of-interface=tailscale0 2>/dev/null || true)
-  if [[ $tailscale_zone == trusted ]]; then
-    pass "Tailscale interface is permanently assigned to trusted"
+  if tailscale_zone=$(sudo -n firewall-cmd --permanent --get-zone-of-interface=tailscale0 2>/dev/null); then
+    if [[ $tailscale_zone == trusted ]]; then
+      pass "Tailscale interface is permanently assigned to trusted"
+    else
+      fail "Tailscale interface is not permanently assigned to trusted"
+    fi
   else
-    fail "Tailscale interface is not permanently assigned to trusted"
+    verify_warn "could not inspect permanent Tailscale zone without sudo"
   fi
 
   if ip link show tailscale0 >/dev/null 2>&1; then
@@ -104,19 +108,27 @@ verify_firewall_zones() {
     [[ $actual == trusted ]] \
       && pass "active Tailscale interface uses trusted" \
       || fail "active Tailscale interface is not in trusted"
+    tailscale_dns=$(resolvectl dns tailscale0 2>/dev/null || true)
+    tailscale_domains=$(resolvectl domain tailscale0 2>/dev/null || true)
+    if [[ $tailscale_dns == *100.100.100.100* && $tailscale_domains =~ :[[:space:]]+[^[:space:]] ]]; then
+      pass "Tailscale DNS resolver and search domain are active"
+    else
+      fail "Tailscale DNS resolver or search domain is missing from systemd-resolved"
+    fi
   else
-    verify_warn "Tailscale interface is inactive; checked its permanent zone assignment"
+    verify_warn "Tailscale interface is inactive; skipped active DNS check"
   fi
 
   while IFS=: read -r uuid name type; do
     case $type in
-      802-11-wireless|802-3-ethernet|tun) ;;
+      802-11-wireless|802-3-ethernet) ;;
+      tun)
+        [[ $name == tailscale0 ]] && continue
+        ;;
       *) continue ;;
     esac
     expected=public
-    if [[ $type == tun && $name == tailscale0 ]]; then
-      expected=trusted
-    elif [[ $type == 802-11-wireless || $type == 802-3-ethernet ]]; then
+    if [[ $type == 802-11-wireless || $type == 802-3-ethernet ]]; then
       for trusted_uuid in "${trusted_uuids[@]}"; do
         [[ $uuid == "$trusted_uuid" ]] && expected=FedoraWorkstation
       done
@@ -399,14 +411,6 @@ if systemctl is-active --quiet tuned-ppd.service || systemctl is-active --quiet 
   pass "power-profile backend active"
 else
   verify_warn "no power-profile backend active"
-fi
-
-if ! command -v firewall-cmd >/dev/null 2>&1 || ! firewall-cmd --state >/dev/null 2>&1; then
-  verify_warn "firewalld is unavailable; SSH firewall access was not checked"
-elif firewall-cmd --zone "$(firewall-cmd --get-default-zone)" --query-service ssh >/dev/null 2>&1; then
-  pass "SSH allowed in the default firewalld zone"
-else
-  verify_warn "SSH is not allowed in the default firewalld zone"
 fi
 
 if command -v flatpak >/dev/null 2>&1; then

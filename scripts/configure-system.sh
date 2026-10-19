@@ -119,8 +119,12 @@ configure_network_zones() {
         done
         ;;
       tun)
+        if [[ $name == tailscale0 ]]; then
+          # Tailscale manages this tunnel and its DNS settings.
+          # Its firewalld zone is bound below without changing the NM profile.
+          continue
+        fi
         zone=public
-        [[ $name == tailscale0 ]] && zone=trusted
         ;;
       *)
         continue
