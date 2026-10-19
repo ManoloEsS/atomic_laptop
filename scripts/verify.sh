@@ -45,6 +45,89 @@ check_link() {
   fi
 }
 
+verify_firewall_zones() {
+  local profile_env="$REPO_ROOT/profiles/$PROFILE/profile.env"
+  local uuid name type expected actual trusted_uuid tailscale_zone
+  local -a trusted_uuids=()
+
+  if ! systemctl is-active --quiet firewalld.service; then
+    fail "firewalld is not active; network-zone policy was not verified"
+    return
+  fi
+
+  if [[ $(firewall-cmd --get-default-zone 2>/dev/null || true) == public ]]; then
+    pass "firewalld default zone is public"
+  else
+    fail "firewalld default zone is not public"
+  fi
+
+  for rule in \
+    "--query-service=ssh" \
+    "--query-port=1025-65535/tcp" \
+    "--query-port=1025-65535/udp"; do
+    if firewall-cmd --zone=public "$rule" >/dev/null 2>&1; then
+      fail "public zone permits an unexpected rule: $rule"
+    else
+      pass "public zone blocks $rule"
+    fi
+  done
+
+  if [[ -r $profile_env ]]; then
+    # shellcheck disable=SC1090
+    source "$profile_env"
+  else
+    verify_warn "no local profile.env; network connections should remain public"
+  fi
+  read -r -a trusted_uuids <<< "${FEDORA_LAPTOP_TRUSTED_CONNECTION_UUIDS:-}"
+
+  if ((${#trusted_uuids[@]} == 0)); then
+    verify_warn "no trusted NetworkManager profiles configured"
+  fi
+  for trusted_uuid in "${trusted_uuids[@]}"; do
+    actual=$(nmcli -g connection.zone connection show "$trusted_uuid" 2>/dev/null || true)
+    if [[ $actual == FedoraWorkstation ]]; then
+      pass "trusted connection uses FedoraWorkstation: $trusted_uuid"
+    else
+      fail "trusted connection is not in FedoraWorkstation: $trusted_uuid"
+    fi
+  done
+
+  tailscale_zone=$(firewall-cmd --permanent --get-zone-of-interface=tailscale0 2>/dev/null || true)
+  if [[ $tailscale_zone == trusted ]]; then
+    pass "Tailscale interface is permanently assigned to trusted"
+  else
+    fail "Tailscale interface is not permanently assigned to trusted"
+  fi
+
+  if ip link show tailscale0 >/dev/null 2>&1; then
+    actual=$(firewall-cmd --get-zone-of-interface=tailscale0 2>/dev/null || true)
+    [[ $actual == trusted ]] \
+      && pass "active Tailscale interface uses trusted" \
+      || fail "active Tailscale interface is not in trusted"
+  else
+    verify_warn "Tailscale interface is inactive; checked its permanent zone assignment"
+  fi
+
+  while IFS=: read -r uuid name type; do
+    case $type in
+      802-11-wireless|802-3-ethernet|tun) ;;
+      *) continue ;;
+    esac
+    expected=public
+    if [[ $type == tun && $name == tailscale0 ]]; then
+      expected=trusted
+    elif [[ $type == 802-11-wireless || $type == 802-3-ethernet ]]; then
+      for trusted_uuid in "${trusted_uuids[@]}"; do
+        [[ $uuid == "$trusted_uuid" ]] && expected=FedoraWorkstation
+      done
+    fi
+    actual=$(nmcli -g connection.zone connection show "$uuid" 2>/dev/null || true)
+    if [[ $actual != "$expected" ]]; then
+      fail "connection $uuid uses zone '${actual:-unset}', expected $expected"
+    fi
+  done < <(nmcli -t -f UUID,NAME,TYPE connection show)
+}
+
 # Rolling Mise tools parsed from mise.toml [tools] (keys may be `name` or
 # `backend:name/path`; the binary is the text after the last `/` or `:`).
 mise_tools() {
@@ -109,6 +192,7 @@ fi
 for command_name in niri noctalia ghostty wtype gcc make wl-copy nvim rg tree-sitter tailscale ssh podman podman-compose; do
   check_command "$command_name"
 done
+verify_firewall_zones
 if podman compose version >/dev/null 2>&1; then
   pass "Podman Compose provider is available"
 else

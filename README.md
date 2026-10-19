@@ -94,6 +94,36 @@ Machine-specific, non-secret settings belong in `profiles/<name>/profile.env`.
 Start from `profiles/laptop/profile.env.example`; the real file is ignored.
 The installer links it into `~/.config/fedora-laptop/` when present.
 
+To trust specific Wi-Fi or Ethernet networks, list their NetworkManager UUIDs
+in `FEDORA_LAPTOP_TRUSTED_CONNECTION_UUIDS` in the ignored
+`profiles/laptop/profile.env`. Find profile UUIDs with:
+
+```sh
+nmcli -g UUID,NAME,TYPE connection show
+```
+
+## Firewall zones
+
+Firewalld defaults to `public`. Saved NetworkManager profiles listed in
+`FEDORA_LAPTOP_TRUSTED_CONNECTION_UUIDS` use `FedoraWorkstation`. The
+`tailscale0` interface uses firewalld's `trusted` zone. Other saved Wi-Fi,
+Ethernet, and tunnel profiles use `public`; new connections inherit that
+default. If the profile file or trusted UUID list is missing, all Wi-Fi and
+Ethernet profiles remain public while Tailscale still uses `trusted`. Zone
+changes apply when the NetworkManager connection activates, so reconnect after
+configuring the profile if needed.
+
+`FedoraWorkstation` is intentionally permissive for networks you trust: this
+system's zone allows SSH and broad high-numbered TCP/UDP ports. `trusted` allows
+all traffic from the Tailscale interface, not just SSH; use Tailscale access
+policies to control which tailnet devices are approved. The `public` zone does
+not allow SSH or those broad port ranges.
+
+Zone assignments attach to NetworkManager profile UUIDs, not to a router's
+identity. In particular, trusting the generic `Wired connection 1` profile
+trusts it wherever that profile is used. Only list profiles for networks you
+own and trust.
+
 Dotfiles are owned by Mise `[dotfiles]` in `mise.toml`, not Stow. Inspect
 before applying:
 
@@ -196,9 +226,10 @@ old `/etc/yum.repos.d/docker-ce.repo` untouched. Inspect and remove that repo
 file separately after confirming it is no longer needed.
 
 Base services (NetworkManager, firewalld, fstrim, power-profile backend)
-are observed and reported, never enabled or changed by the installer, except
-that SSH is allowed in the default firewalld zone. Only `keyd` (opt-in),
-the SSH/Tailscale services, and the WiFi powersave config are managed.
+are observed and reported, never enabled or changed by the installer.
+Firewalld's default and NetworkManager connection zones are configured as
+described above. The installer manages `keyd` (opt-in), SSH/Tailscale services,
+the network-zone policy, and the WiFi powersave config.
 
 WiFi power save is unconditionally disabled via
 `system/NetworkManager/wifi-powersave.conf` (`wifi.powersave = 2`): the

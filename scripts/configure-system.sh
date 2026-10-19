@@ -71,22 +71,73 @@ enable_service() {
   info "Enabled laptop service: $unit"
 }
 
-allow_ssh_in_default_zone() {
+remove_public_rule_if_present() {
+  local query=$1 remove=$2
+  local -a scope=(--zone=public)
+
+  if firewall-cmd "${scope[@]}" "$query" >/dev/null 2>&1; then
+    run_root firewall-cmd "${scope[@]}" "$remove"
+  fi
+  scope=(--permanent --zone=public)
+  if firewall-cmd "${scope[@]}" "$query" >/dev/null 2>&1; then
+    run_root firewall-cmd "${scope[@]}" "$remove"
+  fi
+}
+
+configure_network_zones() {
+  local profile_env="$REPO_ROOT/profiles/$PROFILE/profile.env"
+  local uuid name type zone trusted_uuid
+  local -a trusted_uuids=()
+
+  if [[ -r $profile_env ]]; then
+    # shellcheck disable=SC1090
+    source "$profile_env"
+  fi
+  read -r -a trusted_uuids <<< "${FEDORA_LAPTOP_TRUSTED_CONNECTION_UUIDS:-}"
+
+  require_command nmcli
+  require_command firewall-cmd
   if ! unit_exists firewalld.service || ! systemctl is-active --quiet firewalld.service; then
-    warn "firewalld is unavailable; SSH firewall access was not changed"
-    return
+    die "firewalld must be installed and active to configure network zones safely"
   fi
 
-  command -v firewall-cmd >/dev/null 2>&1 || { warn "firewall-cmd is unavailable; SSH firewall access was not changed"; return; }
-  local zone
-  zone=$(firewall-cmd --get-default-zone)
-  if firewall-cmd --zone "$zone" --query-service ssh >/dev/null 2>&1; then
-    info "SSH already allowed in firewalld zone: $zone"
-  else
-    run_root firewall-cmd --permanent --zone "$zone" --add-service ssh
-    run_root firewall-cmd --reload
-    info "Allowed SSH in firewalld zone: $zone"
+  if ((${#trusted_uuids[@]} == 0)); then
+    info "No trusted NetworkManager profiles configured; using public except for Tailscale"
   fi
+
+  # Assign saved network profiles explicitly so stale FedoraWorkstation
+  # assignments cannot make an untrusted Wi-Fi profile permissive.
+  while IFS=: read -r uuid name type; do
+    case $type in
+      802-11-wireless|802-3-ethernet)
+        zone=public
+        for trusted_uuid in "${trusted_uuids[@]}"; do
+          if [[ $uuid == "$trusted_uuid" ]]; then
+            zone=FedoraWorkstation
+            break
+          fi
+        done
+        ;;
+      tun)
+        zone=public
+        [[ $name == tailscale0 ]] && zone=trusted
+        ;;
+      *)
+        continue
+        ;;
+    esac
+    run_root nmcli connection modify "$uuid" connection.zone "$zone"
+    info "Assigned NetworkManager profile $uuid to firewalld zone $zone"
+  done < <(nmcli -t -f UUID,NAME,TYPE connection show)
+
+  run_root firewall-cmd --set-default-zone=public
+  run_root firewall-cmd --permanent --zone=trusted --change-interface=tailscale0
+  if ip link show tailscale0 >/dev/null 2>&1; then
+    run_root firewall-cmd --zone=trusted --change-interface=tailscale0
+  fi
+  remove_public_rule_if_present --query-service=ssh --remove-service=ssh
+  remove_public_rule_if_present --query-port=1025-65535/tcp --remove-port=1025-65535/tcp
+  remove_public_rule_if_present --query-port=1025-65535/udp --remove-port=1025-65535/udp
 }
 
 while (($#)); do
@@ -236,7 +287,7 @@ report_base_service() {
 for unit in "${DESKTOP_SERVICES[@]}"; do
   enable_service "$unit"
 done
-allow_ssh_in_default_zone
+configure_network_zones
 
 # Base-image services are observed, never managed by this installer.
 report_base_service NetworkManager.service
