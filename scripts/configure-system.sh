@@ -134,10 +134,6 @@ configure_network_zones() {
   done < <(nmcli -t -f UUID,NAME,TYPE connection show)
 
   run_root firewall-cmd --set-default-zone=public
-  run_root firewall-cmd --permanent --zone=trusted --change-interface=tailscale0
-  if ip link show tailscale0 >/dev/null 2>&1; then
-    run_root firewall-cmd --zone=trusted --change-interface=tailscale0
-  fi
 }
 
 while (($#)); do
