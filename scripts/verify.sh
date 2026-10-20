@@ -48,7 +48,7 @@ check_link() {
 verify_firewall_zones() {
   local profile_env="$REPO_ROOT/profiles/$PROFILE/profile.env"
   local uuid name type expected actual trusted_uuid
-  local tailscale_dns tailscale_domains
+  local tailscale_dns tailscale_domains tailscale_nm_zone
   local -a trusted_uuids=()
 
   if ! systemctl is-active --quiet firewalld.service; then
@@ -61,7 +61,6 @@ verify_firewall_zones() {
   else
     fail "firewalld default zone is not public"
   fi
-
   for rule in \
     "--query-service=ssh" \
     "--query-port=1025-65535/tcp" \
@@ -95,6 +94,12 @@ verify_firewall_zones() {
 
   if ip link show tailscale0 >/dev/null 2>&1; then
     pass "Tailscale interface is active"
+    tailscale_nm_zone=$(nmcli -g connection.zone connection show tailscale0 2>/dev/null || true)
+    if [[ -z $tailscale_nm_zone || $tailscale_nm_zone == -- ]]; then
+      pass "Tailscale has no NetworkManager zone override"
+    else
+      fail "Tailscale has an unexpected NetworkManager zone override: $tailscale_nm_zone"
+    fi
     tailscale_dns=$(resolvectl dns tailscale0 2>/dev/null || true)
     tailscale_domains=$(resolvectl domain tailscale0 2>/dev/null || true)
     if [[ $tailscale_dns == *100.100.100.100* && $tailscale_domains =~ :[[:space:]]+[^[:space:]] ]]; then
