@@ -47,7 +47,7 @@ check_link() {
 
 verify_firewall_zones() {
   local profile_env="$REPO_ROOT/profiles/$PROFILE/profile.env"
-  local uuid name type expected actual trusted_uuid tailscale_zone
+  local uuid name type expected actual trusted_uuid
   local tailscale_dns tailscale_domains
   local -a trusted_uuids=()
 
@@ -93,21 +93,8 @@ verify_firewall_zones() {
     fi
   done
 
-  if tailscale_zone=$(sudo -n firewall-cmd --permanent --get-zone-of-interface=tailscale0 2>/dev/null); then
-    if [[ $tailscale_zone == trusted ]]; then
-      pass "Tailscale interface is permanently assigned to trusted"
-    else
-      fail "Tailscale interface is not permanently assigned to trusted"
-    fi
-  else
-    verify_warn "could not inspect permanent Tailscale zone without sudo"
-  fi
-
   if ip link show tailscale0 >/dev/null 2>&1; then
-    actual=$(firewall-cmd --get-zone-of-interface=tailscale0 2>/dev/null || true)
-    [[ $actual == trusted ]] \
-      && pass "active Tailscale interface uses trusted" \
-      || fail "active Tailscale interface is not in trusted"
+    pass "Tailscale interface is active"
     tailscale_dns=$(resolvectl dns tailscale0 2>/dev/null || true)
     tailscale_domains=$(resolvectl domain tailscale0 2>/dev/null || true)
     if [[ $tailscale_dns == *100.100.100.100* && $tailscale_domains =~ :[[:space:]]+[^[:space:]] ]]; then

@@ -106,18 +106,18 @@ nmcli -g UUID,NAME,TYPE connection show
 
 Firewalld defaults to `public`. Saved NetworkManager profiles listed in
 `FEDORA_LAPTOP_TRUSTED_CONNECTION_UUIDS` use `FedoraWorkstation`. The
-`tailscale0` interface uses firewalld's `trusted` zone. Other saved Wi-Fi,
-Ethernet, and tunnel profiles use `public`; new connections inherit that
-default. If the profile file or trusted UUID list is missing, all Wi-Fi and
-Ethernet profiles remain public while Tailscale still uses `trusted`. Zone
-changes apply when the NetworkManager connection activates, so reconnect after
-configuring the profile if needed.
+Tailscale daemon manages `tailscale0` and its DNS; the installer leaves its
+NetworkManager profile untouched. Other saved Wi-Fi, Ethernet, and non-Tailscale
+tunnel profiles use `public`; new connections inherit that default. If the
+profile file or trusted UUID list is missing, Wi-Fi and Ethernet profiles
+remain public. Zone changes apply when a NetworkManager connection activates,
+so reconnect after configuring the profile if needed.
 
 `FedoraWorkstation` is intentionally permissive for networks you trust: this
-system's zone allows SSH and broad high-numbered TCP/UDP ports. `trusted` allows
-all traffic from the Tailscale interface, not just SSH; use Tailscale access
-policies to control which tailnet devices are approved. The `public` zone does
-not allow SSH or those broad port ranges.
+system's zone allows SSH and broad high-numbered TCP/UDP ports. The firewalld
+`trusted` zone is not assigned to Tailscale; Tailscale's own network and SSH
+policies control tailnet access. The `public` zone does not allow SSH or those
+broad port ranges.
 
 Zone assignments attach to NetworkManager profile UUIDs, not to a router's
 identity. In particular, trusting the generic `Wired connection 1` profile
