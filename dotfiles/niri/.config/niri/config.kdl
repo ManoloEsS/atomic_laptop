@@ -50,7 +50,7 @@ input {
 include "~/.config/niri/touchpad.kdl"
 
 layout {
-    gaps 9
+    gaps 3
     center-focused-column "never"
 
     default-column-width { proportion 0.99; }
