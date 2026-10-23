@@ -5,3 +5,4 @@
 gcc
 make
 wl-clipboard
+mpg123
