@@ -72,19 +72,6 @@ if [[ $REPLACE == true ]]; then
   done < <(managed_targets)
 fi
 
-# Remove the repository-managed .profile symlink from older revisions, but
-# leave regular files and unrelated symlinks untouched.
-legacy_profile="$HOME/.profile"
-legacy_source="$REPO_ROOT/dotfiles/bash/.profile"
-if [[ -L $legacy_profile && $(readlink -f -- "$legacy_profile" 2>/dev/null || true) == "$legacy_source" ]]; then
-  if is_dry_run; then
-    info "Would remove legacy managed symlink $legacy_profile"
-  else
-    rm -- "$legacy_profile"
-    info "Removed legacy managed symlink $legacy_profile"
-  fi
-fi
-
 if is_dry_run; then
   info "Would run: $MISE_BIN trust $REPO_ROOT/mise.toml"
   info "Would run: $MISE_BIN bootstrap repos apply/update (Neovim config checkout)"

@@ -425,6 +425,12 @@ else
   fail "Flatpak command unavailable"
 fi
 
+if rpm -q --quiet firefox; then
+  pass "base Firefox RPM is installed"
+else
+  fail "Firefox RPM from the Silverblue base is missing"
+fi
+
 if ! command -v xdg-settings >/dev/null 2>&1; then
   verify_warn "xdg-settings unavailable; default browser was not checked"
 elif [[ $(xdg-settings get default-web-browser 2>/dev/null || true) == "$FIREFOX_DESKTOP_FILE" ]]; then
@@ -472,11 +478,6 @@ if toolbox list --containers 2>/dev/null \
     else
       fail "Toolbx cannot invoke host Podman via flatpak-spawn"
     fi
-    while IFS= read -r package; do
-      if toolbox run --container "$TOOLBOX_NAME" rpm -q --quiet "$package"; then
-        fail "retired Docker/Moby package remains in Toolbx: $package"
-      fi
-    done < <(read_manifest "$MANIFEST_DIR/retired-toolbox-packages.txt")
   else
     fail "Toolbx container missing: $TOOLBOX_NAME"
   fi

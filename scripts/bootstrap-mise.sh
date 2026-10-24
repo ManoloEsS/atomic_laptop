@@ -65,12 +65,6 @@ info "Using Mise $installed_version"
 # Host and Toolbx share the same toolset (including Starship); the prompt
 # itself shows a toolbox marker via the starship `container` module.
 mkdir -p -- "$HOME/.config/mise"
-# Remove the retired toolbox-only overlay link (Starship is now global).
-legacy_overlay="$HOME/.config/mise/config.toolbox.toml"
-if [[ -L $legacy_overlay ]]; then
-  rm -- "$legacy_overlay"
-  info "Removed retired Mise overlay link: $legacy_overlay"
-fi
 for pair in "${MISE_CONFIG_PAIRS[@]}"; do
   target="$HOME/.config/mise/${pair%%:*}"
   source="$REPO_ROOT/${pair##*:}"

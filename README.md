@@ -1,6 +1,6 @@
 # Fedora Laptop
 
-Reproducible workstation setup for **Fedora Silverblue 44 or newer**. GDM
+Repeatable workstation setup with rolling user tools for **Fedora Silverblue 44 or newer**. GDM
 starts the login session, Niri provides the Wayland compositor, and Noctalia
 supplies the desktop shell.
 
@@ -8,7 +8,7 @@ supplies the desktop shell.
 
 ```text
 Base image (assumed, never layered)
-  GNOME/GDM, git, openssh, toolbox, podman, flatpak,
+  GNOME/GDM, Firefox, git, openssh, toolbox, podman, flatpak,
   fontconfig, portals, PipeWire, NetworkManager, nautilus.
 
 Host rpm-ostree (one transaction, one reboot)
@@ -26,16 +26,18 @@ User-local Mise (rolling latest, survives rebases)
 
 Toolbx (project runtimes)
   dev container, minimal DNF (gcc, make,
-  wl-clipboard for Neovim builds/clipboard). In interactive `dev` shells, the
-  `podman` alias forwards to host Podman with `flatpak-spawn --host podman`.
+  wl-clipboard for Neovim builds/clipboard, and mpg123). In interactive `dev`
+  shells, the `podman` alias forwards to host Podman with
+  `flatpak-spawn --host podman`.
   The same rolling Mise CLI tools are available inside the container. Starship
   is global (host and Toolbx) and shows a `⬢ [dev]` marker inside containers
   via its `container` module.
 
 Flatpak (system-wide)
-  Firefox and FreeRDP from Flathub, declared in manifests/flatpaks.txt.
-  Firefox is set and verified as the default browser; FreeRDP backs the
-  optional profile-configured `win-rdp` launcher.
+  FreeRDP from Flathub, declared in manifests/flatpaks.txt. Firefox comes from
+  the Silverblue base RPM, is set and verified as the default browser, and backs
+  the Niri Firefox shortcut. FreeRDP backs the optional profile-configured
+  `win-rdp` launcher.
 ```
 
 Neovim's configuration is kept in the independent kickstart.nvim
@@ -61,12 +63,17 @@ Re-check fingerprints on the upstream project pages before changing them.
 Review the scripts, manifests, and profile before running. Start with a dry run:
 
 ```sh
-bash install.sh --dry-run
-bash install.sh
+bash install.sh --dry-run --replace-dotfiles
+bash install.sh --replace-dotfiles
 ```
 
-Two passes. The first performs preflight and converges host packages, including
-retiring the old Docker CE layers. If a new deployment needs booting,
+Use `--replace-dotfiles` on a fresh Fedora account because Fedora creates
+standard shell files such as `.bashrc` and `.bash_profile`. Conflicting managed
+files are backed up under `~/.local/state/fedora-laptop/backups/` before links
+are applied.
+
+Two passes. The first performs preflight and installs the declared host
+packages. If a new deployment needs booting,
 `scripts/install-packages.sh` exits with status `10`; `install.sh` stops without
 rebooting. Reboot manually, rerun the same command. The second pass configures
 keyd (opt-in), WiFi powersave, and the SSH/Tailscale services, installs the
@@ -148,7 +155,8 @@ mise use python@3.13
 
 ## Updates
 
-There is no GNOME Software here, so updates are explicit and notify-only.
+This setup uses explicit, notify-only update commands rather than GNOME
+Software. The GNOME Software application may still be present in the base image.
 Two streams are covered; everything else stays manual:
 
 - OS deployment (`rpm-ostree`, base plus host layers).
@@ -195,8 +203,9 @@ If a deployment fails, select the previous entry at boot or run
 `rpm-ostree rollback` and reboot. Rollback reverts `/usr` only; `/etc/keyd`,
 repo files, and home symlinks must be reverted separately.
 
-keyd is opt-in: pass `--enable-keyd` to install and activate the remap.
-It applies to every keyboard, swaps Left Alt/Meta, and turns held Left
+The `keyd` package is included in the host package layer. The system-wide remap
+and service are opt-in: pass `--enable-keyd` to configure and activate them.
+The remap applies to every keyboard, swaps Left Alt/Meta, and turns held Left
 Control into a Shift+Meta layer (not Control). Keep a second input ready.
 
 keyd recovery drill (an invalid map can break typing):
@@ -207,7 +216,8 @@ keyd recovery drill (an invalid map can break typing):
 4. `sudo systemctl restart keyd` (or leave it stopped).
 5. Note: `rpm-ostree rollback` does NOT revert `/etc/keyd` — fix it by hand.
 
-Tailscale needs one manual step: `sudo tailscale up`.
+Tailscale needs one manual step: `sudo tailscale up --ssh` to enable Tailscale
+SSH for the documented remote-development workflow.
 
 The installer enables `sshd` and `tailscaled`, but does not authenticate or
 populate them. Podman is rootless and daemonless; it is provided by the
@@ -220,10 +230,8 @@ group, or socket forwarding is configured.
 Dockerfiles and common Compose projects generally work with Podman; validate
 projects using Docker-specific behavior or advanced BuildKit features. Docker
 container/image/volume state is not migrated into Podman's separate storage.
-The installer removes old Docker CE host layers and the Docker/Moby packages
-previously installed manually in `dev`, but leaves existing Docker data and the
-old `/etc/yum.repos.d/docker-ce.repo` untouched. Inspect and remove that repo
-file separately after confirming it is no longer needed.
+Setup only installs the packages declared by this repository; it does not
+remove Docker packages, data, or repository files that may already exist.
 
 Base services (NetworkManager, firewalld, fstrim, power-profile backend)
 are observed and reported, never enabled or changed by the installer.

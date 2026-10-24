@@ -41,8 +41,8 @@ for app in "${apps[@]}"; do
   fi
 done
 
-# Firefox is the declared default browser (checked by verify.sh). Its desktop
-# file is exported once the Flatpak above is installed.
+# Firefox comes from the Silverblue base image. Set the RPM desktop entry as
+# default after the base package and desktop files are available.
 if ! command -v xdg-settings >/dev/null 2>&1; then
   warn "xdg-settings is unavailable; default browser was not set"
 elif [[ $(xdg-settings get default-web-browser 2>/dev/null || true) == "$FIREFOX_DESKTOP_FILE" ]]; then
