@@ -169,6 +169,7 @@ binds {
     // Lock with noctalia
     Mod+Space hotkey-overlay-title="Open launcher" { spawn-sh "noctalia msg panel-toggle launcher"; }
     Mod+Escape hotkey-overlay-title="Open session options" { spawn-sh "noctalia msg panel-toggle session"; }
+    Mod+Shift+Escape allow-inhibiting=false hotkey-overlay-title="Toggle keyboard shortcuts inhibition" { toggle-keyboard-shortcuts-inhibit; }
     Alt+Tab hotkey-overlay-title="Switch windows" { spawn-sh "noctalia msg window-switcher"; }
 
     // Focus and move windows in Niri's scrolling-column model.
@@ -252,11 +253,11 @@ binds {
     Mod+R { switch-preset-column-width; }
     Mod+Shift+R { switch-preset-column-width-back; }
 
-    Mod+Shift+Minus { set-column-width "-10%"; }
-    Mod+Shift+Equal { set-column-width "+10%"; }
+    Mod+Minus { set-column-width "-10%"; }
+    Mod+Equal { set-column-width "+10%"; }
 
-    Mod+Minus { set-window-height "-10%"; }
-    Mod+Equal { set-window-height "+10%"; }
+    Mod+Shift+Minus { set-window-height "-10%"; }
+    Mod+Shift+Equal { set-window-height "+10%"; }
 
     Mod+F { maximize-column; }
     Mod+Shift+F { fullscreen-window; }
@@ -271,11 +272,11 @@ binds {
 
     Mod+W { toggle-column-tabbed-display; }
 
-    Mod+Comma { consume-or-expel-window-left; }
-    Mod+Period { consume-or-expel-window-right; }
+    Mod+BracketLeft { consume-or-expel-window-left; }
+    Mod+BracketRight { consume-or-expel-window-right; }
 
-    Mod+BracketLeft { consume-window-into-column; }
-    Mod+BracketRight { expel-window-from-column; }
+    Mod+Comma { consume-window-into-column; }
+    Mod+Period { expel-window-from-column; }
 
     Mod+O { toggle-overview; }
 
